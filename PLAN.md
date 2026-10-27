@@ -206,6 +206,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    tests; the real `schedule` component with block data; time travel. Done when every behaviour of
    the ladder is reproduced against HA and a reload makes no writes.
 5. **Commands.** Services, presets, buttons, logbook (EN/DE), diagnostics. Tests include area targets.
+   Diagnostics ✅ pulled forward 2026-10-27: house options (notify targets redacted) and per room
+   inputs, decision, stored state, thermostat views and commands, report counters and a trace of
+   the last 200 reports, decisions and writes; also per room device.
 6. **Inference.** ✅ mostly done 2026-10-27: `engine/trend.py` (derivative port), `engine/inference.py`
    (the tuned rule), `monitor.py` (each thermostat's precise temperature sensor found on its device,
    trends seeded from the recorder, ticks like the derivative's max sub-interval), one status sensor

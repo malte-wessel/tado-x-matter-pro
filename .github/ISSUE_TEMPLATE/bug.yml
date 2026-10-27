@@ -29,6 +29,12 @@ body:
     validations:
       required: true
   - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Settings → Devices & services → Tado X Matter Pro → ⋮ → Download diagnostics (or on the room's device page). Remove anything personal before posting.
+      render: json
+  - type: textarea
     id: logs
     attributes:
       label: Logs

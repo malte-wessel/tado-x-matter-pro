@@ -18,6 +18,12 @@ Kitchen: ExternalChange(hvac_mode='heat', temperature=23.0) → Desired(hvac_mod
 
 Turn it off again afterwards (**Disable debug logging** downloads the log).
 
+Without debug logging, **diagnostics** show the same for the recent past: Settings → Devices &
+services → Tado X Matter Pro → three-dot menu → **Download diagnostics** (all rooms), or the same on
+a room's device page (one room). They contain each room's inputs, decision and stored state, every
+thermostat's last report and write, and a trace of the last 200 reports, decisions and writes – for
+example which report was taken as a manual change and why.
+
 ## The room is in *manual* although nobody touched it
 
 Something else changed a thermostat. Usual causes:
@@ -30,7 +36,7 @@ Something else changed a thermostat. Usual causes:
 - **A change while Home Assistant was restarting** – that is intended: it becomes a hold until the
   next schedule change.
 
-The debug log shows which thermostat changed and to what.
+The debug log and the trace in the diagnostics show which thermostat changed and to what.
 
 ## The heating does not come back after a window
 
@@ -73,5 +79,6 @@ thermostats and schedules themselves are available.
 ## Reporting a problem
 
 Open an issue at <https://github.com/malte-wessel/tado-x-matter-pro/issues> with the integration
-and Home Assistant versions, what you did, what you expected, and the debug log lines around it.
-Remove anything personal (names, locations) from logs before posting.
+and Home Assistant versions, what you did, what you expected, and the diagnostics or the debug log
+lines around it. Diagnostics leave out notification targets but contain your entity ids, which
+often name rooms; remove anything personal (names, locations) before posting.

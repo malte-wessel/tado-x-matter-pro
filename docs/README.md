@@ -37,4 +37,4 @@ respects changes made at the thermostat, and tells you whether each radiator is 
 | Overrides | Hold until the next change, room off until switched back | Boost, heat or eco until a time, extend the current block, back to schedule (skipping the wait after a window) |
 | Heating status | Per thermostat heating / reached / off, room thermostat action | – |
 | Safety | Frost protection | Repair issues (thermostat unavailable, chattering contacts, tado° overwriting setpoints) |
-| Explanations | Mode sensor with reason, next change and "back on at" | Logbook entries, diagnostics |
+| Explanations | Mode sensor with reason, next change and "back on at"; diagnostics with a trace | Logbook entries |

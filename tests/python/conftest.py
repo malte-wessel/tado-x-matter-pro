@@ -191,13 +191,15 @@ HOUSE_OPTIONS: dict[str, Any] = {
 }
 
 
-def house_entry(rooms: dict[str, dict[str, Any]] | None = None) -> MockConfigEntry:
-    """The heating entry with the given rooms (title → subentry data)."""
+def house_entry(
+    rooms: dict[str, dict[str, Any]] | None = None, options: dict[str, Any] | None = None
+) -> MockConfigEntry:
+    """The heating entry with the given rooms (title → subentry data) and house options."""
     rooms = {"Kitchen": KITCHEN, "Bathroom": BATHROOM} if rooms is None else rooms
     return MockConfigEntry(
         domain=DOMAIN,
         title=TITLE,
-        options=HOUSE_OPTIONS,
+        options=HOUSE_OPTIONS if options is None else options,
         subentries_data=[
             ConfigSubentryData(data=data, subentry_type=SUBENTRY_ROOM, title=title, unique_id=None)
             for title, data in rooms.items()

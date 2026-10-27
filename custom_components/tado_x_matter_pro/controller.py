@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter, deque
 from collections.abc import Callable
+from dataclasses import asdict
 from datetime import datetime, timedelta
 import logging
 from statistics import fmean
@@ -58,6 +60,8 @@ _LOGGER = logging.getLogger(__name__)
 # A dial turn reports every half degree; act on the last one.
 EXTERNAL_COALESCE = timedelta(seconds=4)
 TOLERANCE = 0.05
+# Entries kept for diagnostics: reports, decisions and writes.
+TRACE_LENGTH = 200
 
 
 def _duration(value: dict[str, Any] | None, default: timedelta) -> timedelta:
@@ -123,6 +127,8 @@ class RoomController:
         self.monitor = HeatingMonitor(
             hass, self.thermostats, self._stored.setdefault("status", {}), self._statuses_changed
         )
+        self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
+        self.counters: Counter[str] = Counter()
 
     # --- what entities read and call ---
 
@@ -186,6 +192,46 @@ class RoomController:
             self._stored["idle_temperature"] = value
         self._store.save()
         self._run()
+
+    def diagnostics(self) -> dict[str, Any]:
+        """Everything that explains the room's behaviour, for a bug report."""
+        monitor = self.monitor
+        return {
+            "name": self.name,
+            "thermostats": self.thermostats,
+            "schedule": self.schedule,
+            "windows": self.windows,
+            "room_sensor": self.room_sensor,
+            "idle_sensors": self.idle_sensors,
+            "config": {
+                "open_delay": self.config.open_delay.total_seconds(),
+                "close_delay": self.config.close_delay.total_seconds(),
+                "frost_temperature": self.config.frost_temperature,
+            },
+            "stored": self._stored,
+            "inputs": asdict(self.inputs) if self.inputs else None,
+            "desired": asdict(self.desired) if self.desired else None,
+            "views": {eid: asdict(view) for eid, view in self._views.items()},
+            "commands": {
+                eid: {**asdict(command), "context_ids": sorted(command.context_ids)}
+                for eid, command in self._commands.items()
+            },
+            "pending_external": asdict(self._pending_external) if self._pending_external else None,
+            "heating": {
+                eid: {
+                    "sensor": monitor.sensors.get(eid),
+                    "status": monitor.status(eid),
+                    "reading": monitor.reading(eid),
+                    "trend": monitor.trend(eid),
+                }
+                for eid in self.thermostats
+            },
+            "counters": dict(self.counters),
+            "trace": list(self.trace),
+        }
+
+    def _trace(self, what: str, **details: Any) -> None:
+        self.trace.append({"at": dt_util.utcnow().isoformat(), "what": what, **details})
 
     # --- lifecycle ---
 
@@ -296,6 +342,17 @@ class RoomController:
             context_id=new_state.context.id if new_state else None,
             now=dt_util.utcnow(),
         )
+        self.counters[f"report_{report}"] += 1
+        if report is not Report.IGNORED:
+            self._trace(
+                "report",
+                thermostat=entity_id,
+                report=report,
+                old=[old.hvac_mode, old.setpoint] if old else None,
+                new=[new.hvac_mode, new.setpoint],
+            )
+        elif old is None or old.available != new.available:
+            self._trace("availability", thermostat=entity_id, available=new.available)
         if report in (Report.OURS, Report.CONVERGED, Report.EXTERNAL):
             self._remember(entity_id, new)
         if report is Report.EXTERNAL:
@@ -354,6 +411,13 @@ class RoomController:
         result = step(self.state, self.inputs, self.config, dt_util.utcnow(), event)
         if event is not None:
             _LOGGER.debug("%s: %s → %s", self.name, event, result.desired)
+        if event is not None or result.desired != self.desired:
+            self._trace(
+                "decision",
+                event=repr(event) if event else None,
+                desired=asdict(result.desired),
+                window=result.state.window,
+            )
         self.state = result.state
         self.desired = result.desired
         # Most runs are readings that change nothing: write to disk only when the state changed.
@@ -421,6 +485,8 @@ class RoomController:
             prev=(view.hvac_mode, view.setpoint), want=want, issued_at=now, context_ids={context.id}
         )
         self._commands[entity_id] = command
+        self.counters["write"] += 1
+        self._trace("write", thermostat=entity_id, want=list(want), context_id=context.id)
         try:
             if want[0] == "off":
                 await self.hass.services.async_call(
@@ -441,5 +507,7 @@ class RoomController:
         except HomeAssistantError as err:
             _LOGGER.warning("%s: writing %s failed: %s", self.name, entity_id, err)
             self._commands.pop(entity_id, None)
+            self.counters["write_failed"] += 1
+            self._trace("write_failed", thermostat=entity_id, error=str(err))
         finally:
             command.returned_at = dt_util.utcnow()
