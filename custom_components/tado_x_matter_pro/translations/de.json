@@ -224,6 +224,9 @@
             "name": "Trend"
           }
         }
+      },
+      "back_on": {
+        "name": "Wieder an"
       }
     }
   },

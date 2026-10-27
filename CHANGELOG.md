@@ -12,3 +12,8 @@ Initial release.
 - Per thermostat a heating status (heating / reached / off), inferred from its temperature and
   trend, since Tado X does not report its valve over Matter; the room thermostat shows it as its
   action.
+- Documentation in `docs/`: installation, configuration, how it works, entities, heating status,
+  dashboards, automations, migrating, troubleshooting, development.
+- The room thermostat stays *off* while frost protection heats a room that was switched off.
+- Per room with windows a "Back on" timestamp sensor: when heating resumes after the windows were
+  closed, shown by cards as relative time.

@@ -96,7 +96,8 @@ Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.k
 | --- | --- |
 | `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from inference; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
 | `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, reason, plan_target, next_change, next_target, resume_at, override_until, boost_until` (absolute timestamps). |
-| `sensor` Next change | `device_class: timestamp`. |
+| `sensor` Next change | `device_class: timestamp`. (planned) |
+| `sensor` Back on (rooms with windows) | `device_class: timestamp`: end of the wait after the windows closed; empty otherwise. ✅ 2026-10-27 |
 | `sensor` <TRV> heating (one per thermostat) | Enum `heating, reached, off` from the inference for that one TRV; attribute `trend` (°C/h). Lets rooms with several radiators show which one heats. |
 | `number` Comfort temperature, Eco temperature | Store-backed, step 0.5. Comfort applies during schedule blocks, eco outside them and while away. |
 | `binary_sensor` Window open, Window open too long | On once a window has been open for the open delay; reminder state. Only for rooms with windows. |

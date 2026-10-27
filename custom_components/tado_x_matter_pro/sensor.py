@@ -1,7 +1,8 @@
-"""The room's mode, and per thermostat whether it is heating."""
+"""The room's mode, when heating resumes after a window, and per thermostat whether it heats."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
@@ -10,6 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HeatingConfigEntry
+from .const import DOMAIN
 from .controller import RoomController
 from .engine.inference import Status
 from .engine.model import Mode
@@ -21,10 +23,14 @@ async def async_setup_entry(
     entry: HeatingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """One mode sensor per room, one heating status per thermostat."""
+    """Per room the mode and – with windows – when heating resumes; a status per thermostat."""
     registry = er.async_get(hass)
     for room_id, room in entry.runtime_data.rooms.items():
         entities: list[SensorEntity] = [ModeSensor(room)]
+        if room.windows:
+            entities.append(BackOn(room))
+        elif entity_id := registry.async_get_entity_id("sensor", DOMAIN, f"{room_id}_back_on"):
+            registry.async_remove(entity_id)  # the room lost its windows
         for thermostat in room.thermostats:
             registry_entry = registry.async_get(thermostat)
             state = hass.states.get(thermostat)
@@ -83,6 +89,26 @@ class ModeSensor(RoomEntity, SensorEntity):
             else None,
             "window": str(self.room.state.window),
         }
+
+
+class BackOn(RoomEntity, SensorEntity):
+    """When heating resumes after the room's windows were closed; empty otherwise.
+
+    A timestamp, so cards show it as relative time ("in 4 minutes").
+    """
+
+    _attr_translation_key = "back_on"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, room: RoomController) -> None:
+        """Create the sensor."""
+        super().__init__(room, "back_on")
+
+    @property
+    def native_value(self) -> datetime | None:
+        """The end of the wait after closing, while it runs."""
+        desired = self.room.desired
+        return desired.resume_at if desired else None
 
 
 class ThermostatStatus(RoomEntity, SensorEntity):

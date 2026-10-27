@@ -6,45 +6,63 @@
 
 Room-by-room heating control for Tado X radiator thermostats connected to Home Assistant over Matter.
 
-Over Matter, Tado X thermostats are plain thermostats: a mode, a setpoint, a temperature. Everything
-else – schedules, windows, away modes, boost – has to happen in Home Assistant. Tado X Matter Pro does
-that in one integration: you add a room, pick its thermostats, schedule and window sensors, and get a
-room thermostat that follows the plan, reacts to windows and remembers manual changes.
+Over Matter, Tado X thermostats are plain thermostats: a mode, a setpoint, a temperature. Schedules,
+windows, away modes – and even whether a radiator is heating – have to happen in Home Assistant.
+Tado X Matter Pro does that in one integration: you add a room, pick its thermostats, schedule and
+window contacts, and get a room thermostat that follows the plan, pauses for open windows,
+remembers manual changes, and shows which radiator is heating.
 
-> **Status:** in development, nothing to install yet. See [PLAN.md](PLAN.md).
-> Not affiliated with tado°.
+> **Status: pre-release.** Room control and the heating status work. Boost, timed overrides, the
+> window reminder and repair issues are planned. Not affiliated with tado°.
 
-## What it will do
+## Features
 
+- **Rooms** with any number of thermostats, set up in the UI: schedule, windows and doors, an
+  optional room sensor.
 - **Schedules** from Home Assistant's schedule helpers; a block can carry its own temperature.
-- **Windows and doors**: off after a short delay (so a door that is opened for a second does not
-  count), back on a few minutes after closing, with an optional reminder when a window stays open.
-- **Away and holiday**: any switch or sensor you choose drops the house to idle temperatures.
-- **Manual changes** on the thermostat, in the tado° app or in Home Assistant hold until the next
-  schedule change.
-- **Boost**, **heat until …**, **eco until …**, **extend the current block** and **back to schedule**,
-  as buttons, presets and services that target rooms, areas or floors.
-- **Is it heating?** Tado X does not report its valve over Matter; the integration infers it from the
-  thermostat's temperature trend and shows it as the room thermostat's action.
-- **Explains itself**: a mode sensor with the reason, the next change and when heating resumes, and
-  logbook entries for every decision.
+  Comfort and eco temperature per room, changeable on the dashboard.
+- **Away and vacation:** any switches or sensors you choose put every room on its eco temperature.
+- **Windows and doors** switch a room off after a short delay – a door opened to walk through
+  changes nothing – and back on a few minutes after closing.
+- **Manual changes** at the thermostat, in the tado° app or in Home Assistant are held until the
+  next schedule change; rooms with several thermostats follow. Holds survive restarts.
+- **Is it heating?** Tado X does not report its valve over Matter; the integration infers it per
+  thermostat from the temperature trend and shows it as the room thermostat's action.
+- **Frost protection** for rooms that are off or have a window open.
+- **Explains itself:** a mode sensor per room says what decides right now, when the schedule
+  changes next, and when heating resumes after a window.
 
-## Requirements
+## Documentation
 
-- Home Assistant 2026.10 or newer.
-- Tado X thermostats added to Home Assistant through Matter.
-- In the tado° app: a flat schedule, manual changes "until ended", and open window detection off –
-  otherwise tado° overwrites what Home Assistant sets.
+| | |
+| --- | --- |
+| [Installation](docs/installation.md) | Requirements, tado° app settings, HACS |
+| [Configuration](docs/configuration.md) | House settings and rooms, field by field |
+| [How it works](docs/how-it-works.md) | Priorities, schedule, windows, manual changes, frost, restarts |
+| [Entities](docs/entities.md) | What each room creates, states and attributes |
+| [Heating status](docs/heating-status.md) | How "heating" is inferred, and its limits |
+| [Dashboards](docs/dashboards.md) · [Automations](docs/automations.md) | Examples |
+| [Migrating from a DIY setup](docs/migrating.md) | From blueprint and helpers, room by room |
+| [Troubleshooting](docs/troubleshooting.md) | Common surprises, debug logging |
+| [Development](docs/development.md) | Dev container with a simulated house, tests, code layout |
+
+## Quick start
+
+1. Requirements: Home Assistant 2026.10+, Tado X thermostats added over Matter, a schedule helper.
+2. In the tado° app: a flat schedule, manual changes "until you cancel", open window detection off.
+3. HACS → Custom repositories → `https://github.com/malte-wessel/tado-x-matter-pro` (Integration) →
+   download **Tado X Matter Pro** → restart.
+4. Settings → Devices & services → Add integration → *Tado X Matter Pro*, then **Add room**.
 
 ## Development
 
 ```sh
 uv sync            # Python venv with Home Assistant and the test harness
 scripts/check.sh   # everything CI runs: ruff, mypy, pytest
-scripts/ha.sh      # a real Home Assistant (official image, version from test/ha/.env) with the simulated Dev House: http://localhost:8123, dev / dev
+scripts/ha.sh      # a real Home Assistant with the simulated Dev House: http://localhost:8123, dev / dev
 ```
 
-[AGENTS.md](AGENTS.md) describes the layout and the rules, [CONTRIBUTING.md](CONTRIBUTING.md) the workflow.
+See [Development](docs/development.md), [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

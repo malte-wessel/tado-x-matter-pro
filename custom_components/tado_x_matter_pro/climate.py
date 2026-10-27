@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
@@ -56,14 +57,13 @@ class RoomThermostat(RoomEntity, ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode | None:
         """Off when the room is switched off, heat during a manual hold, else auto."""
-        desired = self.room.desired
-        if desired is None:
+        if self.room.desired is None:
             return None
-        if desired.mode is Mode.OFF:
-            return HVACMode.OFF
-        if desired.mode is Mode.MANUAL:
-            return HVACMode.HEAT
-        return HVACMode.AUTO
+        override = self.room.state.override
+        if override is None or isinstance(override.expires, datetime):
+            return HVACMode.AUTO  # the plan, or (later) a timed override
+        # also while a window or frost protection overrides the hold, it is still the room's mode
+        return HVACMode.OFF if override.temperature is None else HVACMode.HEAT
 
     @property
     def hvac_action(self) -> HVACAction | None:

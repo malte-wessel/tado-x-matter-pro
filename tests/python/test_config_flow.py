@@ -141,3 +141,4 @@ async def test_reconfigure_room(
     await hass.async_block_till_done()
     assert entry.subentries[subentry_id].data["windows"] == []
     assert hass.states.get("binary_sensor.kitchen_heating_window_open") is None
+    assert hass.states.get("sensor.kitchen_heating_back_on") is None

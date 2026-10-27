@@ -11,7 +11,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.tado_x_matter_pro.const import DOMAIN
 from tests.python.conftest import FakeTrv, set_inputs
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
@@ -82,12 +81,24 @@ async def test_window_switches_off_after_the_delay_and_back_on(
     assert window is not None
     assert window.state == "on"
 
+    back_on = hass.states.get("sensor.kitchen_heating_back_on")
+    assert back_on is not None
+    assert back_on.state == "unknown"  # no countdown while the window is still open
+
     set_inputs(hass, kitchen_window="off")
     await hass.async_block_till_done()
     assert mode(hass, "kitchen") == "waiting"
+    back_on = hass.states.get("sensor.kitchen_heating_back_on")
+    assert back_on is not None
+    resumes = dt_util.parse_datetime(back_on.state)
+    assert resumes is not None
+    assert abs(resumes - (dt_util.utcnow() + timedelta(minutes=5))) < timedelta(seconds=1)
     await advance(hass, freezer, 5 * 60)
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
     assert mode(hass, "kitchen") == "schedule"
+    back_on = hass.states.get("sensor.kitchen_heating_back_on")
+    assert back_on is not None
+    assert back_on.state == "unknown"
 
 
 async def test_a_door_opened_for_seconds_changes_nothing(
@@ -225,7 +236,6 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
     for entity in entities:
         by_room.setdefault(entity.config_subentry_id, set()).add(entity.entity_id)
     assert len(by_room) == 2
-    assert all(registry.async_get(e.entity_id) for e in entities)
     kitchen = next(ids for ids in by_room.values() if "climate.kitchen_heating" in ids)
     assert kitchen == {
         "climate.kitchen_heating",
@@ -233,6 +243,9 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
         "number.kitchen_heating_comfort_temperature",
         "number.kitchen_heating_eco_temperature",
         "binary_sensor.kitchen_heating_window_open",
+        "sensor.kitchen_heating_back_on",
         "sensor.kitchen_heating_kitchen_trv_heating",
     }
-    assert DOMAIN in {e.platform for e in entities}
+    climate = registry.async_get("climate.kitchen_heating")
+    assert climate is not None
+    assert {registry.async_get(e).device_id for e in kitchen} == {climate.device_id}  # type: ignore[union-attr]
