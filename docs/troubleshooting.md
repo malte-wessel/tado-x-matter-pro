@@ -37,7 +37,8 @@ The debug log shows which thermostat changed and to what.
 - Check the Mode sensor: *waiting* means the close delay runs; the room's *Back on* sensor says
   until when.
 - *window* means a window or door of the room still reports open. Check every contact of the room –
-  a door left ajar counts. A contact that is *unavailable* keeps its last state.
+  a door left ajar counts. A contact that is *unavailable* keeps its last known state, so one that
+  dropped out while open keeps the room off until it reports again.
 - Lower *Back on after* in the room settings if 5 minutes is too long for you.
 
 ## Short openings still switch the heating off

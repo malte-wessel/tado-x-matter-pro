@@ -17,6 +17,7 @@ from homeassistant.core import (
     Event,
     EventStateChangedData,
     HomeAssistant,
+    State,
     callback,
 )
 from homeassistant.exceptions import HomeAssistantError
@@ -115,7 +116,8 @@ class RoomController:
         self._pending_external: ExternalChange | None = None
         self._views: dict[str, TrvView] = {}
         self._commands: dict[str, Command] = {}
-        self._window_last: dict[str, bool] = {}
+        # Last available state of each input: an unavailable one keeps its last known state.
+        self._known: dict[str, State] = {}
         self._reconcile_task: asyncio.Task[None] | None = None
         self._reconcile_again = False
         self.monitor = HeatingMonitor(
@@ -224,25 +226,37 @@ class RoomController:
             setpoint=_float(state.attributes.get("temperature")),
         )
 
+    def _known_state(self, entity_id: str) -> State | None:
+        """Return the input's state, or its last available one while it is unavailable."""
+        state = self.hass.states.get(entity_id)
+        if state is not None and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            self._known[entity_id] = state
+        return self._known.get(entity_id)
+
     def _read_inputs(self) -> Inputs:
-        schedule = self.hass.states.get(self.schedule)
-        schedule_on = schedule is not None and schedule.state == STATE_ON
-        block = _float(schedule.attributes.get("temperature")) if schedule and schedule_on else None
-        idle = any(
-            (s := self.hass.states.get(e)) is not None and s.state == STATE_ON
-            for e in self.idle_sensors
-        )
-        for entity_id in self.windows:
-            state = self.hass.states.get(entity_id)
-            if state is not None and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                self._window_last[entity_id] = state.state == STATE_ON
+        # Inputs not known since the start keep the last decision (the stored plan key), so a
+        # sensor that is slow to come up after a restart neither switches the plan nor ends holds.
+        last = self.state.plan_key
+        schedule = self._known_state(self.schedule)
+        if schedule is not None:
+            schedule_on = schedule.state == STATE_ON
+            block = _float(schedule.attributes.get("temperature")) if schedule_on else None
+        else:
+            schedule_on, block = (last[0], last[1]) if last else (False, None)
+        idle_states = [self._known_state(e) for e in self.idle_sensors]
+        idle = any(s is not None and s.state == STATE_ON for s in idle_states)
+        if not idle and last and None in idle_states:
+            idle = last[2]
         return Inputs(
             schedule_on=schedule_on,
             block_temperature=block,
             idle=idle,
             heating_temperature=self.heating_temperature,
             idle_temperature=self.idle_temperature,
-            window_open=any(self._window_last.values()),
+            window_open=any(
+                (s := self._known_state(e)) is not None and s.state == STATE_ON
+                for e in self.windows
+            ),
             room_temperature=self._room_temperature(),
         )
 
@@ -311,8 +325,10 @@ class RoomController:
             listener()
 
     def _remember(self, entity_id: str, view: TrvView) -> None:
-        self._stored["last_known"][entity_id] = [view.hvac_mode, view.setpoint]
-        self._store.save()
+        known = [view.hvac_mode, view.setpoint]
+        if self._stored["last_known"].get(entity_id) != known:
+            self._stored["last_known"][entity_id] = known
+            self._store.save()
 
     def _changed_while_down(self) -> ExternalChange | None:
         """Return a change made while HA was down: a thermostat differs from what we knew."""
@@ -340,8 +356,11 @@ class RoomController:
             _LOGGER.debug("%s: %s → %s", self.name, event, result.desired)
         self.state = result.state
         self.desired = result.desired
-        self._stored["state"] = state_to_dict(self.state)
-        self._store.save()
+        # Most runs are readings that change nothing: write to disk only when the state changed.
+        stored = state_to_dict(self.state)
+        if stored != self._stored.get("state"):
+            self._stored["state"] = stored
+            self._store.save()
         self._schedule_wakeup(result.next_wakeup)
         for listener in list(self._listeners):
             listener()
@@ -380,7 +399,8 @@ class RoomController:
     async def _async_write(self, entity_id: str) -> None:
         desired = self.desired
         view = self._view(entity_id)
-        if desired is None or not view.available:
+        if desired is None or not view.available or self._pending_external is not None:
+            # While a dial turn settles, the old target would turn it back; it becomes the hold.
             return
         want = (desired.hvac_mode, desired.temperature)
         if view.hvac_mode == want[0] and (

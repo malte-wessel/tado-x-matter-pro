@@ -65,7 +65,8 @@ Details:
 - **Rooms with several thermostats follow:** turning one radiator to 23 °C sets the room to 23 °C,
   so the integration writes 23 °C to the other thermostats of the room too.
 - **Turning the dial:** a dial reports every half degree while it is being turned. The integration
-  waits until the reports have stopped for 4 seconds and takes the last value.
+  waits until the reports have stopped for 4 seconds and takes the last value. Meanwhile it writes
+  nothing to the room's thermostats, so the dial is never turned back to the old value.
 - **Recognising its own writes:** when the integration writes a thermostat, the thermostat's reports
   in the next seconds carry the integration's own context and are not mistaken for manual changes.
   Matter reports mode and setpoint separately; values on the way from the old to the new setting
@@ -130,8 +131,6 @@ thermostats  heat      │ off                                 │ heat (plan or
   made before the window opened. If the plan changed while the window was open, the new plan
   applies.
 
-A contact that becomes *unavailable* keeps its last known state.
-
 ### A dial turned while the window is open
 
 If someone turns a thermostat up while the room is off because of a window, that is taken as a
@@ -159,6 +158,13 @@ The frost temperature (house setting, default 7 °C) is a floor:
 The room's temperature is the room sensor, or the thermostats' mean without one. The thermostats'
 own readings are higher than the room near the window; a room sensor makes frost protection more
 reliable.
+
+## Sensors and schedules that drop out
+
+A schedule, away sensor or window contact that becomes *unavailable* or *unknown* keeps its last
+known state: a short drop-out is neither a plan change (holds stay) nor a window event. After a
+restart, an input that has not come back yet keeps the room's last decision – for example, away
+stays on until the away sensor reports again.
 
 ## Thermostats that drop out
 

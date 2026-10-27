@@ -116,6 +116,8 @@ class ThermostatStatus(RoomEntity, SensorEntity):
 
     _attr_translation_key = "thermostat_status"
     _attr_device_class = SensorDeviceClass.ENUM
+    # They change with every reading; recording them would add a row each time.
+    _unrecorded_attributes = frozenset({"temperature", "trend"})
 
     def __init__(self, room: RoomController, thermostat: str, key: str, name: str) -> None:
         """Create the status sensor of `thermostat`, named after it."""

@@ -228,6 +228,17 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
 - The dev container must be stopped gracefully (`docker stop`) before it is removed, or Home
   Assistant loses registry changes from its last seconds.
 - The S1 Matter contract test is postponed (decided 2026-10-27).
+- Review 2026-10-27: (1) schedules and idle sensors read as off while unavailable, so a blip ended
+  holds or flipped eco/comfort – all inputs now keep their last available state, and inputs not
+  known since the start fall back to the stored plan key; (2) any run during the 4 s dial coalesce
+  wrote the old target back to the turned thermostat – no writes while an external change is
+  pending; (3) every reading rewrote the store (now only on change) and recorded the status
+  sensors' trend/reading attributes (now unrecorded).
+- Open from that review: retry failed writes with backoff and a timeout; store the last command
+  next to the last report so a write in flight at shutdown is not a hold; repair issue for window
+  contacts unavailable while open; away vs. vacation temperatures; `zone.home`/`person` as idle
+  inputs; window detection from the temperature drop for rooms without contacts; an `away` mode
+  separate from `idle`.
 
 ## Open questions (defaults in brackets)
 

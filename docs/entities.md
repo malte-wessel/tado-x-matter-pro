@@ -111,5 +111,8 @@ Attributes:
 | `temperature` | The thermostat's own reading (from its precise temperature sensor if it has one). |
 | `trend` | How fast that reading changes, in °C per hour, over the last 20 minutes. |
 
+`temperature` and `trend` change with every reading and are not recorded in the history; the
+status itself is.
+
 How the status is inferred – and when it can be wrong – is explained in
 [Heating status](heating-status.md).

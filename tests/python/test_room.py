@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
+from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
@@ -11,6 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
+from custom_components.tado_x_matter_pro.const import DOMAIN
 from tests.python.conftest import FakeTrv, set_inputs
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
@@ -140,6 +142,101 @@ async def test_dial_turn_holds_syncs_siblings_until_the_next_change(
     await hass.async_block_till_done()
     assert mode(hass, "bathroom") == "idle"
     assert trv_state(hass, "climate.bath_trv") == ("heat", 18.0)
+
+
+async def test_a_reading_while_the_dial_settles_does_not_turn_it_back(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    set_inputs(hass, bathroom="on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 120)  # our writes have settled
+    turned = trvs["climate.bath_trv"]
+    writes = len(turned.writes)
+
+    turned.dial(23.0)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 1)
+    trvs["climate.bath_tub_trv"].read(20.3)  # the sibling reports while the dial settles
+    await hass.async_block_till_done()
+    assert trv_state(hass, "climate.bath_trv") == ("heat", 23.0)
+
+    await advance(hass, freezer, 4)
+    assert mode(hass, "bathroom") == "manual"
+    assert turned.writes[writes:] == []
+    assert trv_state(hass, "climate.bath_tub_trv") == ("heat", 23.0)
+
+
+async def test_unavailable_inputs_keep_their_last_state(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    trvs["climate.kitchen_trv"].dial(23.0)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 4)
+    assert mode(hass, "kitchen") == "manual"
+
+    set_inputs(hass, ground_floor="unavailable")
+    await hass.async_block_till_done()
+    set_inputs(hass, ground_floor="on")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "manual"  # a schedule blip is not a plan change
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 23.0)
+
+    set_inputs(hass, away="on")
+    await hass.async_block_till_done()
+    set_inputs(hass, away="unavailable")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "idle"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
+
+
+async def test_inputs_unavailable_after_a_restart_keep_the_last_decision(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    entry = await setup_house()
+    set_inputs(hass, away="on")
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    set_inputs(hass, away="unavailable")  # the kitchen block is still on
+    writes = len(trvs["climate.kitchen_trv"].writes)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "idle"
+    assert trvs["climate.kitchen_trv"].writes[writes:] == []
+
+
+async def test_readings_alone_do_not_write_the_store(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+    hass_storage: dict[str, Any],
+) -> None:
+    await setup_house()
+    await advance(hass, freezer, 5)
+    hass_storage.pop(DOMAIN, None)
+
+    for reading in (20.1, 20.2, 20.3):
+        trvs["climate.bath_trv"].sensor.set(reading)  # the status stays "reached"
+        hass.states.async_set("schedule.ground_floor", "on", {"next_event": None})
+        await advance(hass, freezer, 5)
+    assert DOMAIN not in hass_storage
+
+    set_inputs(hass, ground_floor="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5)
+    assert DOMAIN in hass_storage
 
 
 async def test_our_own_writes_are_not_manual_changes(
