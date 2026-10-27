@@ -3,11 +3,233 @@
     "step": {
       "user": {
         "title": "Tado X Matter Pro",
-        "description": "Steuert Tado-X-Thermostate über Matter raumweise: Zeitpläne, Fenster, Boost und manuelle Änderungen. Räume werden nach der Einrichtung hinzugefügt."
+        "description": "Einstellungen für das ganze Haus. Räume fügst du danach auf der Integrationsseite mit „Raum hinzufügen“ hinzu.",
+        "data": {
+          "idle_sensors": "Abwesenheits-Sensoren",
+          "frost_temperature": "Frostschutz"
+        },
+        "data_description": {
+          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
+          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist."
+        },
+        "sections": {
+          "boost": {
+            "name": "Boost",
+            "data": {
+              "temperature": "Temperatur",
+              "duration": "Dauer"
+            }
+          },
+          "window_reminder": {
+            "name": "Fenster-Erinnerung",
+            "data": {
+              "outdoor_sensor": "Außentemperatur",
+              "only_below": "Nur unter",
+              "notify": "Benachrichtigen"
+            },
+            "data_description": {
+              "outdoor_sensor": "Optional. Nötig für „Nur unter“.",
+              "only_below": "Nur erinnern, wenn es draußen kälter ist. Leer: immer.",
+              "notify": "Benachrichtigungs-Aktionen, z. B. notify.mobile_app_handy. Die Minuten stellst du pro Raum ein."
+            }
+          }
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Tado X Matter Pro ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Haus-Einstellungen",
+        "data": {
+          "idle_sensors": "Abwesenheits-Sensoren",
+          "frost_temperature": "Frostschutz"
+        },
+        "data_description": {
+          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
+          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist."
+        },
+        "sections": {
+          "boost": {
+            "name": "Boost",
+            "data": {
+              "temperature": "Temperatur",
+              "duration": "Dauer"
+            }
+          },
+          "window_reminder": {
+            "name": "Fenster-Erinnerung",
+            "data": {
+              "outdoor_sensor": "Außentemperatur",
+              "only_below": "Nur unter",
+              "notify": "Benachrichtigen"
+            },
+            "data_description": {
+              "outdoor_sensor": "Optional. Nötig für „Nur unter“.",
+              "only_below": "Nur erinnern, wenn es draußen kälter ist. Leer: immer.",
+              "notify": "Benachrichtigungs-Aktionen, z. B. notify.mobile_app_handy. Die Minuten stellst du pro Raum ein."
+            }
+          }
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "room": {
+      "entry_type": "Raum",
+      "initiate_flow": {
+        "user": "Raum hinzufügen",
+        "reconfigure": "Raum ändern"
+      },
+      "step": {
+        "user": {
+          "title": "Raum hinzufügen",
+          "data": {
+            "name": "Name",
+            "thermostats": "Thermostate",
+            "schedule": "Zeitplan",
+            "windows": "Fenster und Türen",
+            "room_sensor": "Raumtemperatur"
+          },
+          "data_description": {
+            "name": "Leer: der Bereich des ersten Thermostats.",
+            "thermostats": "Alle Heizkörperthermostate des Raums. Ein Thermostat gehört zu genau einem Raum.",
+            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Heiztemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
+            "windows": "Kontakte, die den Raum ausschalten, solange sie offen sind.",
+            "room_sensor": "Optional. Wird als Raumtemperatur angezeigt; ohne ihn der Mittelwert der Thermostate."
+          },
+          "sections": {
+            "window": {
+              "name": "Fenster",
+              "data": {
+                "open_delay": "Ausschalten nach",
+                "close_delay": "Wieder an nach",
+                "remind_after": "Erinnern nach (Minuten)"
+              },
+              "data_description": {
+                "open_delay": "So lange muss ein Fenster offen sein, bevor der Raum ausschaltet. Kürzeres Öffnen wird ignoriert.",
+                "close_delay": "Wartezeit, nachdem das letzte Fenster geschlossen wurde.",
+                "remind_after": "0: keine Erinnerung für diesen Raum."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Raum ändern",
+          "data": {
+            "name": "Name",
+            "thermostats": "Thermostate",
+            "schedule": "Zeitplan",
+            "windows": "Fenster und Türen",
+            "room_sensor": "Raumtemperatur"
+          },
+          "data_description": {
+            "name": "Leer: der Bereich des ersten Thermostats.",
+            "thermostats": "Alle Heizkörperthermostate des Raums. Ein Thermostat gehört zu genau einem Raum.",
+            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Heiztemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
+            "windows": "Kontakte, die den Raum ausschalten, solange sie offen sind.",
+            "room_sensor": "Optional. Wird als Raumtemperatur angezeigt; ohne ihn der Mittelwert der Thermostate."
+          },
+          "sections": {
+            "window": {
+              "name": "Fenster",
+              "data": {
+                "open_delay": "Ausschalten nach",
+                "close_delay": "Wieder an nach",
+                "remind_after": "Erinnern nach (Minuten)"
+              },
+              "data_description": {
+                "open_delay": "So lange muss ein Fenster offen sein, bevor der Raum ausschaltet. Kürzeres Öffnen wird ignoriert.",
+                "close_delay": "Wartezeit, nachdem das letzte Fenster geschlossen wurde.",
+                "remind_after": "0: keine Erinnerung für diesen Raum."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "no_thermostats": "Wähle mindestens ein Thermostat.",
+        "thermostat_in_other_room": "Ein Thermostat gehört schon zu einem anderen Raum."
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "window_open": {
+        "name": "Fenster offen"
+      }
+    },
+    "number": {
+      "comfort_temperature": {
+        "name": "Komforttemperatur"
+      },
+      "eco_temperature": {
+        "name": "Eco-Temperatur"
+      }
+    },
+    "sensor": {
+      "mode": {
+        "name": "Modus",
+        "state": {
+          "schedule": "Zeitplan",
+          "idle": "Leerlauf",
+          "manual": "Manuell",
+          "window": "Fenster",
+          "waiting": "Wartet",
+          "off": "Aus",
+          "frost": "Frostschutz"
+        },
+        "state_attributes": {
+          "target": {
+            "name": "Ziel"
+          },
+          "plan_target": {
+            "name": "Planziel"
+          },
+          "next_change": {
+            "name": "Nächster Wechsel"
+          },
+          "next_target": {
+            "name": "Danach"
+          },
+          "resume_at": {
+            "name": "Wieder an um"
+          },
+          "override_until": {
+            "name": "Übersteuert bis"
+          },
+          "window": {
+            "name": "Fensterphase"
+          }
+        }
+      },
+      "thermostat_status": {
+        "name": "{thermostat} Heizbetrieb",
+        "state": {
+          "heating": "Heizt",
+          "reached": "Erreicht",
+          "off": "Aus"
+        },
+        "state_attributes": {
+          "thermostat": {
+            "name": "Thermostat"
+          },
+          "temperature": {
+            "name": "Temperatur"
+          },
+          "trend": {
+            "name": "Trend"
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "room": {
+      "name": "Heizung"
     }
   }
 }

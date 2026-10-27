@@ -1,0 +1,114 @@
+"""The room's mode, and per thermostat whether it is heating."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+from . import HeatingConfigEntry
+from .controller import RoomController
+from .engine.inference import Status
+from .engine.model import Mode
+from .entity import RoomEntity
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: HeatingConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """One mode sensor per room, one heating status per thermostat."""
+    registry = er.async_get(hass)
+    for room_id, room in entry.runtime_data.rooms.items():
+        entities: list[SensorEntity] = [ModeSensor(room)]
+        for thermostat in room.thermostats:
+            registry_entry = registry.async_get(thermostat)
+            state = hass.states.get(thermostat)
+            entities.append(
+                ThermostatStatus(
+                    room,
+                    thermostat,
+                    # the registry id survives renaming the thermostat's entity id
+                    registry_entry.id if registry_entry else thermostat,
+                    state.name if state else thermostat,
+                )
+            )
+        async_add_entities(entities, config_subentry_id=room_id)
+
+
+class ModeSensor(RoomEntity, SensorEntity):
+    """Schedule, idle, manual, window, waiting, off or frost – with the times that matter."""
+
+    _attr_translation_key = "mode"
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(self, room: RoomController) -> None:
+        """Create the mode sensor."""
+        super().__init__(room, "mode")
+        self._attr_options = [str(mode) for mode in Mode]
+
+    @property
+    def native_value(self) -> str | None:
+        """The current mode."""
+        desired = self.room.desired
+        return str(desired.mode) if desired else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Target, plan target and the moments things change."""
+        desired = self.room.desired
+        if desired is None:
+            return {}
+        inputs = self.room.inputs
+        next_change = self.room.next_change
+        next_target = None
+        if inputs is not None and next_change is not None:
+            next_target = (
+                inputs.idle_temperature
+                if inputs.schedule_on or inputs.idle
+                else inputs.heating_temperature
+            )
+        return {
+            "target": desired.temperature,
+            "plan_target": desired.plan_target,
+            "next_change": next_change.isoformat() if next_change else None,
+            "next_target": next_target,
+            "resume_at": desired.resume_at.isoformat() if desired.resume_at else None,
+            "override_until": desired.override_until.isoformat()
+            if desired.override_until
+            else None,
+            "window": str(self.room.state.window),
+        }
+
+
+class ThermostatStatus(RoomEntity, SensorEntity):
+    """Whether one thermostat is heating, has reached its setpoint, or is off (inferred)."""
+
+    _attr_translation_key = "thermostat_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(self, room: RoomController, thermostat: str, key: str, name: str) -> None:
+        """Create the status sensor of `thermostat`, named after it."""
+        super().__init__(room, f"status_{key}")
+        self.thermostat = thermostat
+        self._attr_options = [str(status) for status in Status]
+        self._attr_translation_placeholders = {"thermostat": name}
+
+    @property
+    def native_value(self) -> str:
+        """Heating, reached or off."""
+        return str(self.room.monitor.status(self.thermostat))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The thermostat, its reading and the reading's trend (°C/h)."""
+        monitor = self.room.monitor
+        return {
+            "thermostat": self.thermostat,
+            "temperature": monitor.reading(self.thermostat),
+            "trend": monitor.trend(self.thermostat),
+        }

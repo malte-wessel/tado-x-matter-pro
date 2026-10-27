@@ -15,11 +15,12 @@ homeassistant:
   country: DE
   language: en
 
-# speed: how many times faster than real time the rooms warm and cool (1 = realistic).
+# speed: how many times faster than real time the rooms warm and cool (1 = realistic; keep 1 to
+# judge the heating status, whose thresholds are in °C per real hour).
 # report_delay: seconds until a written setpoint is reported back (> 5 s exercises the fallback
 # that recognises our own writes by value instead of by context).
 dev_house:
-  speed: 6
+  speed: 1
   report_delay: 1.5
 
 input_boolean:

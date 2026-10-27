@@ -79,6 +79,11 @@ class DevHouseThermostat(DevHouseEntity, ClimateEntity):
         return self._trv.setpoint
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The simulation's truth, to check the inferred status against."""
+        return {"valve_open": self._trv.valve_open}
+
+    @property
     def current_temperature(self) -> float:
         """The thermostat's own reading, at 0.1 °C like the Matter climate."""
         return round(self.sim.trv_reading(self.object_id), 1)

@@ -13,6 +13,7 @@ async function call(path, { method = "GET", body, token, form } = {}) {
   const res = await fetch(BASE + path, {
     method,
     headers,
+    signal: AbortSignal.timeout(15000),
     body: form ? new URLSearchParams(body) : body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -94,10 +95,15 @@ async function ensureConfigEntry(token) {
     token,
     body: { handler: "tado_x_matter_pro" },
   });
+  // The house form: away sensors of the Dev House, everything else at its defaults.
   const done = await call(`/api/config/config_entries/flow/${flow.flow_id}`, {
     method: "POST",
     token,
-    body: {},
+    body: {
+      idle_sensors: ["input_boolean.away_mode", "input_boolean.vacation_mode"],
+      boost: {},
+      window_reminder: { outdoor_sensor: "sensor.outdoor_temperature" },
+    },
   });
   console.log(
     `Tado X Matter Pro entry: ${done.type === "create_entry" ? "created" : JSON.stringify(done).slice(0, 120)}`,
@@ -114,9 +120,15 @@ async function connect(token) {
     if (waiters.length) waiters.shift()(m);
     else queue.push(m);
   };
+  // Every wait times out, so a Home Assistant that is still starting leads to a retry, not a hang.
+  const timeout = (what) =>
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`websocket: no ${what}`)), 15000));
   const next = () =>
-    queue.length ? Promise.resolve(queue.shift()) : new Promise((r) => waiters.push(r));
-  await new Promise((r) => (ws.onopen = r));
+    Promise.race([
+      queue.length ? Promise.resolve(queue.shift()) : new Promise((r) => waiters.push(r)),
+      timeout("answer"),
+    ]);
+  await Promise.race([new Promise((r) => (ws.onopen = r)), timeout("connection")]);
   await next(); // auth_required
   ws.send(JSON.stringify({ type: "auth", access_token: token }));
   await next(); // auth_ok
@@ -215,6 +227,8 @@ const thermostatTile = (id) => ({
   grid_options: { columns: 12 },
   features: [{ type: "target-temperature" }, { type: "climate-hvac-modes", hvac_modes: ["off", "heat"] }],
   features_position: "bottom",
+  // valve_open is the simulation's truth, to compare with the integration's inferred status
+  state_content: ["hvac_mode", "current_temperature", "valve_open"],
 });
 const contactTile = (id) => ({
   type: "tile",
@@ -306,3 +320,5 @@ for (let attempt = 1; ; attempt++) {
   }
 }
 console.log(`ready: ${BASE}  (user ${USERNAME} / ${PASSWORD})`);
+// A websocket of a failed attempt may still be open; it must not keep the script alive.
+process.exit(0);

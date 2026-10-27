@@ -17,12 +17,15 @@ REQUESTED_VERSION="$HA_VERSION"  # the command line wins over test/ha/.env
 HA_VERSION="${REQUESTED_VERSION:-${HA_VERSION:-stable}}"
 case "$1" in
   stop)
+    # A graceful stop lets Home Assistant write its registries and stores first.
+    docker stop -t 60 "$NAME" >/dev/null 2>&1 || true
     docker rm -f "$NAME" >/dev/null 2>&1 && echo "stopped" || echo "not running"; exit 0 ;;
   reset)
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker volume rm "$VOLUME" >/dev/null 2>&1 && echo "config volume removed" || echo "no config volume"; exit 0 ;;
 esac
 if ! docker info >/dev/null 2>&1; then echo "Docker is not running." >&2; exit 2; fi
+docker stop -t 60 "$NAME" >/dev/null 2>&1 || true  # graceful: HA saves registries and stores
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --name "$NAME" -p 8123:8123 -e TZ=Europe/Berlin \
   -v "$VOLUME":/config \

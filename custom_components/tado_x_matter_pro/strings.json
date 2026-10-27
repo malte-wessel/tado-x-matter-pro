@@ -3,11 +3,233 @@
     "step": {
       "user": {
         "title": "Tado X Matter Pro",
-        "description": "Controls Tado X thermostats over Matter by room: schedules, windows, boost and manual holds. Add rooms after setup."
+        "description": "Settings for the whole house. Add the rooms afterwards with \"Add room\" on the integration page.",
+        "data": {
+          "idle_sensors": "Away sensors",
+          "frost_temperature": "Frost protection"
+        },
+        "data_description": {
+          "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
+          "frost_temperature": "No room drops below this, even when it is switched off or a window is open."
+        },
+        "sections": {
+          "boost": {
+            "name": "Boost",
+            "data": {
+              "temperature": "Temperature",
+              "duration": "Duration"
+            }
+          },
+          "window_reminder": {
+            "name": "Window reminder",
+            "data": {
+              "outdoor_sensor": "Outdoor temperature",
+              "only_below": "Only below",
+              "notify": "Notify"
+            },
+            "data_description": {
+              "outdoor_sensor": "Optional. Needed for \"Only below\".",
+              "only_below": "Remind only when it is colder outside. Empty: always.",
+              "notify": "Notification actions, e.g. notify.mobile_app_phone. The minutes are set per room."
+            }
+          }
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Tado X Matter Pro is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "House settings",
+        "data": {
+          "idle_sensors": "Away sensors",
+          "frost_temperature": "Frost protection"
+        },
+        "data_description": {
+          "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
+          "frost_temperature": "No room drops below this, even when it is switched off or a window is open."
+        },
+        "sections": {
+          "boost": {
+            "name": "Boost",
+            "data": {
+              "temperature": "Temperature",
+              "duration": "Duration"
+            }
+          },
+          "window_reminder": {
+            "name": "Window reminder",
+            "data": {
+              "outdoor_sensor": "Outdoor temperature",
+              "only_below": "Only below",
+              "notify": "Notify"
+            },
+            "data_description": {
+              "outdoor_sensor": "Optional. Needed for \"Only below\".",
+              "only_below": "Remind only when it is colder outside. Empty: always.",
+              "notify": "Notification actions, e.g. notify.mobile_app_phone. The minutes are set per room."
+            }
+          }
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "room": {
+      "entry_type": "Room",
+      "initiate_flow": {
+        "user": "Add room",
+        "reconfigure": "Change room"
+      },
+      "step": {
+        "user": {
+          "title": "Add room",
+          "data": {
+            "name": "Name",
+            "thermostats": "Thermostats",
+            "schedule": "Schedule",
+            "windows": "Windows and doors",
+            "room_sensor": "Room temperature"
+          },
+          "data_description": {
+            "name": "Empty: the area of the first thermostat.",
+            "thermostats": "All radiator thermostats of the room. A thermostat can belong to one room only.",
+            "schedule": "A schedule helper: during its blocks the room uses its heating temperature, or the block's own \"temperature\" (additional data).",
+            "windows": "Contacts that switch the room off while open.",
+            "room_sensor": "Optional. Shown as the room's temperature; without it, the thermostats' mean."
+          },
+          "sections": {
+            "window": {
+              "name": "Windows",
+              "data": {
+                "open_delay": "Switch off after",
+                "close_delay": "Back on after",
+                "remind_after": "Remind after (minutes)"
+              },
+              "data_description": {
+                "open_delay": "How long a window must be open before the room switches off. Shorter openings are ignored.",
+                "close_delay": "How long to wait after the last window closed.",
+                "remind_after": "0: no reminder for this room."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Change room",
+          "data": {
+            "name": "Name",
+            "thermostats": "Thermostats",
+            "schedule": "Schedule",
+            "windows": "Windows and doors",
+            "room_sensor": "Room temperature"
+          },
+          "data_description": {
+            "name": "Empty: the area of the first thermostat.",
+            "thermostats": "All radiator thermostats of the room. A thermostat can belong to one room only.",
+            "schedule": "A schedule helper: during its blocks the room uses its heating temperature, or the block's own \"temperature\" (additional data).",
+            "windows": "Contacts that switch the room off while open.",
+            "room_sensor": "Optional. Shown as the room's temperature; without it, the thermostats' mean."
+          },
+          "sections": {
+            "window": {
+              "name": "Windows",
+              "data": {
+                "open_delay": "Switch off after",
+                "close_delay": "Back on after",
+                "remind_after": "Remind after (minutes)"
+              },
+              "data_description": {
+                "open_delay": "How long a window must be open before the room switches off. Shorter openings are ignored.",
+                "close_delay": "How long to wait after the last window closed.",
+                "remind_after": "0: no reminder for this room."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "no_thermostats": "Pick at least one thermostat.",
+        "thermostat_in_other_room": "A thermostat already belongs to another room."
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "window_open": {
+        "name": "Window open"
+      }
+    },
+    "number": {
+      "comfort_temperature": {
+        "name": "Comfort temperature"
+      },
+      "eco_temperature": {
+        "name": "Eco temperature"
+      }
+    },
+    "sensor": {
+      "mode": {
+        "name": "Mode",
+        "state": {
+          "schedule": "Schedule",
+          "idle": "Idle",
+          "manual": "Manual",
+          "window": "Window",
+          "waiting": "Waiting",
+          "off": "Off",
+          "frost": "Frost protection"
+        },
+        "state_attributes": {
+          "target": {
+            "name": "Target"
+          },
+          "plan_target": {
+            "name": "Plan target"
+          },
+          "next_change": {
+            "name": "Next change"
+          },
+          "next_target": {
+            "name": "Next target"
+          },
+          "resume_at": {
+            "name": "Back on at"
+          },
+          "override_until": {
+            "name": "Override until"
+          },
+          "window": {
+            "name": "Window phase"
+          }
+        }
+      },
+      "thermostat_status": {
+        "name": "{thermostat} heating",
+        "state": {
+          "heating": "Heating",
+          "reached": "Reached",
+          "off": "Off"
+        },
+        "state_attributes": {
+          "thermostat": {
+            "name": "Thermostat"
+          },
+          "temperature": {
+            "name": "Temperature"
+          },
+          "trend": {
+            "name": "Trend"
+          }
+        }
+      }
+    }
+  },
+  "device": {
+    "room": {
+      "name": "Heating"
     }
   }
 }

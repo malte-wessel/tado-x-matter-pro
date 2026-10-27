@@ -21,7 +21,7 @@ Quality bar and tooling come from `pro-budget`.
 | Dial turned while a window is open | Respected: the room heats as a manual hold until the next plan change; a new opening switches off again. |
 | Windows | Per room: open delay (debounce, 30 s), close delay (5 min), reminder after N min (30, 0 = off). House-wide: outdoor condition (optional sensor, "only below N °C") and notify targets. |
 | Room temperature | Optional room sensor per room; fallback is the mean of the TRVs' own temperature sensors. |
-| Heating inference | Rule on setpoint − TRV temperature and the TRV temperature trend, with hysteresis, exposed as native `hvac_action`. Trend from each TRV's own temperature sensor (0.01 °C; the climate attribute is only 0.1 °C), found through the device registry. |
+| Heating inference | Rule on setpoint − TRV temperature and the TRV temperature trend, with hysteresis, per TRV: one status sensor per thermostat, and the room climate's native `hvac_action` = the most active of its TRVs. Trend from each TRV's own temperature sensor (0.01 °C; the climate attribute is only 0.1 °C), found through the device registry. |
 | Storage | `homeassistant.helpers.storage.Store`, key `tado_x_matter_pro`, versioned with migrations. Holds numbers, overrides, window phases, deadlines and TRV bookkeeping. No RestoreEntity. |
 | Install | HACS integration, public repo. |
 | Language | English names, keys and states everywhere; translations `strings.json` + `translations/{en,de}.json`. Logbook and notification texts (which HA cannot translate) come from `messages.py` by `hass.config.language`. |
@@ -61,7 +61,7 @@ of the `notify.*` actions found when the form opens, custom values allowed).
 30 s open, back on after 5 min closed, remind after 30 min open (0 = no reminder).
 Not asked: each TRV's own temperature sensor (same device) and the device area (the TRV's area).
 
-**Not configuration:** heating and idle temperatures are number entities (dashboard, defaults
+**Not configuration:** comfort and eco temperatures are number entities (dashboard, defaults
 21/18); times and block temperatures live in the schedule helpers; overrides are services and buttons.
 
 ## Backend modules (`custom_components/tado_x_matter_pro/`)
@@ -86,15 +86,20 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `logbook.py`, `messages.py` | Logbook descriptions, EN/DE texts. |
 | `alerts.py`, `issues.py`, `diagnostics.py` | Window reminder notifications, repair issues, diagnostics with the trace. |
 
-### Entities (one device per room, named after the room)
+### Entities (one device per room)
+
+The room device is called "Heating" and sits in the area of the room's first thermostat, because
+Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.kitchen_heating`,
+`sensor.kitchen_heating_mode`). Without an area the device carries the room's name instead.
 
 | Entity | State / notes |
 | --- | --- |
 | `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from inference; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
 | `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, reason, plan_target, next_change, next_target, resume_at, override_until, boost_until` (absolute timestamps). |
 | `sensor` Next change | `device_class: timestamp`. |
-| `number` Heating temperature, Idle temperature | Store-backed, step 0.5. |
-| `binary_sensor` Window open, Window open too long | Effective window state; reminder state. |
+| `sensor` <TRV> heating (one per thermostat) | Enum `heating, reached, off` from the inference for that one TRV; attribute `trend` (°C/h). Lets rooms with several radiators show which one heats. |
+| `number` Comfort temperature, Eco temperature | Store-backed, step 0.5. Comfort applies during schedule blocks, eco outside them and while away. |
+| `binary_sensor` Window open, Window open too long | On once a window has been open for the open delay; reminder state. Only for rooms with windows. |
 | `button` Boost, Resume schedule | |
 
 ### Services (climate entity services)
@@ -185,21 +190,43 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    real TRV history (outside the repo; only the conclusions land here): what dial turns, app changes
    and tado° cloud writes look like, their timing and rounding. S4 subentry UX (add, reconfigure,
    delete removes the device) in the dev HA. Done when the findings are recorded below.
-2. **Engine.** `engine/*` with table tests for the ladder, the clearing matrix, window timings and the
+2. **Thin slice through phases 2 and 3.** ✅ done 2026-10-27 (to try the integration in the Dev House
+   early): engine (ladder, window state machine with open and close delay, manual hold until the
+   next plan change incl. sibling sync, room off, resume, timed-override expiry, frost floor,
+   external-change classifier); house form and options with sections; rooms as subentries (add,
+   reconfigure, one room per thermostat, name from the area); controller with store, reconcile
+   only on deviation, changes while HA was down → manual hold; room thermostat, mode sensor,
+   comfort/eco numbers, window sensor. 56 tests (engine + HA with fake Matter-like thermostats).
+   Not yet: boost and timed-override services, the 100 % engine coverage gate, a reminder or
+   repairs.
+3. **Engine (rest).** `engine/*` with table tests for the ladder, the clearing matrix, window timings and the
    external classifier. Done at 100 % branch coverage of `engine/`.
-3. **Shell.** Flows, controller, TrvWriter, store, all entities; a fake Matter-like TRV in the
+4. **Shell (rest).** Flows, controller, TrvWriter, store, all entities; a fake Matter-like TRV in the
    tests; the real `schedule` component with block data; time travel. Done when every behaviour of
    the ladder is reproduced against HA and a reload makes no writes.
-4. **Commands.** Services, presets, buttons, logbook (EN/DE), diagnostics. Tests include area targets.
-5. **Inference.** Trend, inference, seeding. Done when an equivalence test against HA's derivative
+5. **Commands.** Services, presets, buttons, logbook (EN/DE), diagnostics. Tests include area targets.
+6. **Inference.** ✅ mostly done 2026-10-27: `engine/trend.py` (derivative port), `engine/inference.py`
+   (the tuned rule), `monitor.py` (each thermostat's precise temperature sensor found on its device,
+   trends seeded from the recorder, ticks like the derivative's max sub-interval), one status sensor
+   per thermostat (heating / reached / off, attributes trend and reading), the room thermostat's
+   `hvac_action`. A test compares the trend with Home Assistant's derivative helper over 300 random
+   steps (within one rounding unit). Open: the replay against recorded real history.
+   Originally: Trend, inference, seeding; the per-TRV status sensors and the room's `hvac_action`. Done when an equivalence test against HA's derivative
    sensor (|Δ| ≤ 0.01) and a replay test on anonymized recorded history agree ≥ 98 %.
-6. **Extras.** Frost guard, window reminder and notify, issues. Release 0.1.0-beta.1.
-7. **Real-world rollout.** One room first next to the existing setup, then all rooms, then the old
+7. **Extras.** Frost guard, window reminder and notify, issues. Release 0.1.0-beta.1.
+8. **Real-world rollout.** One room first next to the existing setup, then all rooms, then the old
    automations and helpers go. Done after one week without regressions.
 
-## Findings (from the spikes)
+## Findings
 
-_None yet._
+- Home Assistant 2026.10 prefixes new entity ids with the area (setting `entity_id_parts`, default
+  area + parent device + device + entity), so a device named like its area doubles the name
+  (`kitchen_kitchen`). Hence the room device's name "Heating".
+- The store must be written on unload, not only with the 1 s delayed save: a reload otherwise starts
+  from the previous state and overwrites a change the user just made.
+- The dev container must be stopped gracefully (`docker stop`) before it is removed, or Home
+  Assistant loses registry changes from its last seconds.
+- The S1 Matter contract test is postponed (decided 2026-10-27).
 
 ## Open questions (defaults in brackets)
 
