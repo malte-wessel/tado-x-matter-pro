@@ -47,6 +47,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "D", "ANN", "PLR", "ARG001", "SLF001", "INP001", "PT022", "FBT003", "S311"]
+# Run as a module, it prints the comparison of trend windows.
+"tests/python/replay.py" = ["T201"]
 # The Dev House simulator of the dev HA: never shipped, kept readable rather than strict.
 "test/ha/**" = ["D401", "C901", "S311", "RUF012"]
 

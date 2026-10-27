@@ -75,7 +75,7 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `engine/window.py` | Debounce state machine. |
 | `engine/room.py` | Reducer `step(state, inputs, event, now) -> (state, effects, next_wakeup)`. |
 | `engine/external.py` | Classifies TRV reports: ours, intermediate, converged, external. |
-| `engine/trend.py` | Exact port of HA's derivative sensor (20 min window, 5 min max sub-interval, °C/h). |
+| `engine/trend.py` | Exact port of HA's derivative sensor (10 min window, 5 min max sub-interval, °C/h). |
 | `engine/inference.py` | heating / reached / off with hysteresis. |
 | `controller.py` | `RoomController`: listeners → events → `engine.step` → effects; one wakeup timer; serial event queue; trace ring buffer. |
 | `trv.py` | `TrvWriter`: reconcile desired vs. actual, expectation before the call, context ids, retry only on exception or unavailable. |
@@ -214,7 +214,11 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    trends seeded from the recorder, ticks like the derivative's max sub-interval), one status sensor
    per thermostat (heating / reached / off, attributes trend and reading), the room thermostat's
    `hvac_action`. A test compares the trend with Home Assistant's derivative helper over 300 random
-   steps (within one rounding unit). Open: the replay against recorded real history.
+   steps (within one rounding unit). Replay ✅ 2026-10-27: four anonymized recordings (strong heating,
+   weak demand, door toggles, never heating) in `tests/fixtures/replay/`, `tests/python/replay.py`
+   mirrors monitor.py; the window went from 20 to 10 min (end of heating 11 → 5 min after the
+   reading's peak, no new blips; 5 min added blips). Open: a ground truth (pipe sensor on two
+   radiators) to measure accuracy instead of agreement.
    Originally: Trend, inference, seeding; the per-TRV status sensors and the room's `hvac_action`. Done when an equivalence test against HA's derivative
    sensor (|Δ| ≤ 0.01) and a replay test on anonymized recorded history agree ≥ 98 %.
 7. **Extras.** Frost guard, window reminder and notify, issues. Release 0.1.0-beta.1.
@@ -237,6 +241,17 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
   wrote the old target back to the turned thermostat – no writes while an external change is
   pending; (3) every reading rewrote the store (now only on change) and recorded the status
   sensors' trend/reading attributes (now unrecorded).
+- Tado X over Matter (firmware 1.4.289) exposes in its Thermostat cluster only LocalTemperature,
+  the setpoint, SystemMode, ControlSequenceOfOperation and the absolute limits: no PIHeatingDemand,
+  no ThermostatRunningState. There is no separate temperature cluster; the "temperature" sensor is
+  LocalTemperature at 0.01 °C. Readings are reported only on change (about once a minute while
+  changing, no reports of unchanged values).
+- The reading is not a radiator temperature: with a cold radiator it sits 0.5–1 °C below a room
+  sensor. Strong heating: +5–7 °C/h within minutes, overshoot ~0.7 °C, slow decay. A setpoint a few
+  tenths above the reading barely moves it. After a setpoint increase during cooling, hot water took
+  ~15 min to show.
+- A write reported as two states (mode, then setpoint) can make the status flip for a second
+  (seen in recorded history); worth ignoring intermediate reports in the monitor.
 - Open from that review: retry failed writes with backoff and a timeout; store the last command
   next to the last report so a write in flight at shutdown is not a hold; repair issue for window
   contacts unavailable while open; away vs. vacation temperatures; `zone.home`/`person` as idle

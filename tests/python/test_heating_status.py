@@ -79,7 +79,7 @@ async def test_trend_matches_home_assistants_derivative_sensor(
     trvs: dict[str, FakeTrv],
 ) -> None:
     await setup_house()
-    # HA's own derivative helper on the same sensor, configured like the old trend helpers
+    # HA's own derivative helper on the same sensor, configured like our trend
     reference_entry = MockConfigEntry(
         domain="derivative",
         title="reference",
@@ -88,7 +88,7 @@ async def test_trend_matches_home_assistants_derivative_sensor(
             "source": "sensor.kitchen_trv_temperature",
             "round": 2.0,
             "unit_time": "h",
-            "time_window": {"minutes": 20},
+            "time_window": {"minutes": 10},
             "max_sub_interval": {"minutes": 5},
         },
     )

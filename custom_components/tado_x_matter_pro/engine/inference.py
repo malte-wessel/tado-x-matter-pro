@@ -10,7 +10,9 @@ trend t (°C/h), with hysteresis through the previous status:
 - otherwise → heating when d > −0.1 and t > −0.3 (below or at the setpoint, not cooling),
   or t ≥ 0.8 and d > −1.5 (radiator clearly warm, also when overshooting); otherwise reached.
 
-Tuned on three days of real data from Tado X thermostats.
+Tuned on three days of real data from Tado X thermostats; tests/python/replay.py replays anonymized
+recordings through it. It reports heat arriving at the radiator: after the setpoint goes up it says
+heating once the reading turns upwards, not when the valve is asked to open.
 """
 
 from __future__ import annotations

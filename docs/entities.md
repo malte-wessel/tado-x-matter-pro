@@ -109,7 +109,7 @@ Attributes:
 | --- | --- |
 | `thermostat` | The thermostat's entity id. |
 | `temperature` | The thermostat's own reading (from its precise temperature sensor if it has one). |
-| `trend` | How fast that reading changes, in °C per hour, over the last 20 minutes. |
+| `trend` | How fast that reading changes, in °C per hour, over the last 10 minutes. |
 
 `temperature` and `trend` change with every reading and are not recorded in the history; the
 status itself is.

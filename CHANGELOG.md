@@ -24,5 +24,8 @@ Initial release.
   a restart, inputs that have not come back yet keep the last decision.
 - While a hand-turned dial settles, nothing is written to the room's thermostats, so the dial is
   never turned back to the old value.
+- The heating status reacts faster: the trend looks at the last 10 minutes instead of 20, so
+  *heating* ends about 5 minutes after the radiator's reading peaks instead of 11, without new short
+  false *heating*. Checked by replaying anonymized recordings of real Tado X thermostats.
 - The store is written only when something changed, not after every thermostat reading; the
   heating status sensors' `temperature` and `trend` attributes are not recorded.

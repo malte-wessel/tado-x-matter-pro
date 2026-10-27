@@ -1,9 +1,14 @@
 """The temperature trend in °C/h, computed exactly like Home Assistant's derivative sensor.
 
-Settings as in a derivative helper with time window 20 min, max sub-interval 5 min, unit per hour,
+Settings as in a derivative helper with time window 10 min, max sub-interval 5 min, unit per hour,
 2 decimals. Each state change adds a segment (old report → new update, slope); the trend is the
 time-weighted sum of the segments inside the window. Reports of an unchanged value add flat
 segments; without any report the trend is recalculated every max sub-interval until it is zero.
+
+Tado X reports its reading every minute while it changes, at 0.01 °C and practically without noise,
+so 10 minutes are enough: replaying recorded history (tests/python/replay.py), a 20-minute window
+kept "heating" about 11 minutes past the reading's peak, 10 minutes about 5, and 5 minutes turned
+bumps of a few hundredths into short false "heating".
 """
 
 from __future__ import annotations
@@ -11,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-WINDOW = timedelta(minutes=20)
+WINDOW = timedelta(minutes=10)
 MAX_SUB_INTERVAL = timedelta(minutes=5)
 DIGITS = 2
 

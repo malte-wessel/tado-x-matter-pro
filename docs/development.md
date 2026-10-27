@@ -40,6 +40,7 @@ for every new rule.
 | `tests/python/test_config_flow.py` | House form, options, adding and changing rooms. |
 | `tests/python/test_room.py` | Rooms in a real Home Assistant core with fake Matter-like thermostats: schedule, away, windows, dial turns, the room thermostat, numbers, reloads, restarts. |
 | `tests/python/test_heating_status.py` | Status sensors and the room's action; the trend compared with Home Assistant's own derivative helper over 300 random steps. |
+| `tests/python/replay.py`, `tests/python/engine/test_engine_replay.py`, `tests/fixtures/replay/` | Anonymized recordings of real Tado X thermostats (reading, mode, setpoint; seconds from the start) replayed through the trend and the rule. `uv run python -m tests.python.replay` compares trend windows. |
 
 The fake thermostats (`tests/python/conftest.py`) behave like Tado X over Matter: only *off* and
 *heat*, mode and setpoint reported separately, a precise temperature sensor on the same device, and
