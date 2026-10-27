@@ -1,0 +1,15 @@
+{
+  "domain": "tado_x_matter_pro",
+  "name": "Tado X Matter Pro",
+  "after_dependencies": ["recorder", "schedule"],
+  "codeowners": ["@malte-wessel"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/malte-wessel/tado-x-matter-pro",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/malte-wessel/tado-x-matter-pro/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0-beta.1"
+}

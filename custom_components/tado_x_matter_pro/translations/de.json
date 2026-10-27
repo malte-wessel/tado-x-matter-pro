@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tado X Matter Pro",
+        "description": "Steuert Tado-X-Thermostate über Matter raumweise: Zeitpläne, Fenster, Boost und manuelle Änderungen. Räume werden nach der Einrichtung hinzugefügt."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Tado X Matter Pro ist bereits eingerichtet."
+    }
+  }
+}

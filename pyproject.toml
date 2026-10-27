@@ -1,0 +1,68 @@
+[project]
+name = "tado-x-matter-pro"
+version = "0.1.0-beta.1"
+description = "Tado X Matter Pro – room heating control for Tado X thermostats over Matter in Home Assistant"
+requires-python = ">=3.14.2,<3.15"
+license = "MIT"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest-homeassistant-custom-component==0.13.370",
+  "ruff==0.16.10",
+  "mypy==2.4.0",
+]
+
+[tool.uv]
+package = false
+prerelease = "allow"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+branch = true
+source = ["custom_components/tado_x_matter_pro"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "ARG001",                # HA callbacks receive arguments they may not use
+  "ANN401",                # Any is fine for JSON-ish payloads and generic wrappers
+  "D203", "D213",          # conflicting docstring styles; we use D211 + D212
+  "COM812",                # handled by the formatter
+  "TRY003", "EM101", "EM102",
+  "PLR2004",               # thresholds of the heating rules are documented inline
+  "CPY001",                # no per-file copyright headers; LICENSE covers the repo
+  "TC001", "TC002", "TC003",  # HA style: runtime imports, no TYPE_CHECKING blocks
+  "RUF002", "RUF003",      # en dashes and degree signs in docstrings and comments are fine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "D", "ANN", "PLR", "ARG001", "SLF001", "INP001", "PT022"]
+# The Dev House simulator of the dev HA: never shipped, kept readable rather than strict.
+"test/ha/**" = ["D401", "C901", "S311", "RUF012"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components.tado_x_matter_pro"]
+force-sort-within-sections = true
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+explicit_package_bases = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = ["pytest_homeassistant_custom_component.*"]
+ignore_missing_imports = true

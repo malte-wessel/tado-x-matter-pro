@@ -1,0 +1,37 @@
+# Home Assistant configuration of the dev instance: the fictional Dev House
+# (test/ha/custom_components/dev_house) with the integration under test mounted at
+# /config/custom_components/tado_x_matter_pro. scripts/ha-setup.mjs adds the schedules and the
+# "Dev House" dashboard.
+default_config:
+
+homeassistant:
+  name: Dev House
+  latitude: 52.52
+  longitude: 13.405
+  elevation: 34
+  unit_system: metric
+  time_zone: Europe/Berlin
+  currency: EUR
+  country: DE
+  language: en
+
+# speed: how many times faster than real time the rooms warm and cool (1 = realistic).
+# report_delay: seconds until a written setpoint is reported back (> 5 s exercises the fallback
+# that recognises our own writes by value instead of by context).
+dev_house:
+  speed: 6
+  report_delay: 1.5
+
+input_boolean:
+  away_mode:
+    name: Away
+    icon: mdi:home-export-outline
+  vacation_mode:
+    name: Vacation
+    icon: mdi:beach
+
+logger:
+  default: warning
+  logs:
+    custom_components.tado_x_matter_pro: debug
+    custom_components.dev_house: info

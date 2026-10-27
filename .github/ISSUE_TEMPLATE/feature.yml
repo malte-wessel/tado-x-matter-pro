@@ -1,0 +1,14 @@
+name: Feature request
+description: Something the integration should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should it do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why? What does it enable in your home?

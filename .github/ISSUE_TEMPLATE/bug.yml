@@ -1,0 +1,36 @@
+name: Bug report
+description: The integration fails to load, an entity is wrong, or a thermostat does something unexpected.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Tado X Matter Pro version
+      description: The version HACS shows.
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.10.0"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant lines from Settings → System → Logs, with `custom_components.tado_x_matter_pro` at debug level.
+      render: text

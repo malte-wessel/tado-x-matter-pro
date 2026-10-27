@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tado X Matter Pro",
+        "description": "Controls Tado X thermostats over Matter by room: schedules, windows, boost and manual holds. Add rooms after setup."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Tado X Matter Pro is already set up."
+    }
+  }
+}

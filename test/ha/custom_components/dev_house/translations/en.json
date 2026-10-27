@@ -1,0 +1,44 @@
+{
+  "services": {
+    "set_window": {
+      "name": "Set window",
+      "description": "Opens or closes window and door contacts; without `open` they toggle.",
+      "fields": {
+        "entity_id": { "name": "Contacts", "description": "Window or door contacts." },
+        "open": { "name": "Open", "description": "Open (on) or closed (off); leave out to toggle." }
+      }
+    },
+    "turn_dial": {
+      "name": "Turn dial",
+      "description": "Changes a thermostat at the device itself: half-degree steps without a Home Assistant context.",
+      "fields": {
+        "entity_id": { "name": "Thermostats", "description": "Thermostats to turn." },
+        "temperature": { "name": "Temperature", "description": "Setpoint to turn to." },
+        "hvac_mode": { "name": "Mode", "description": "Switch off or on at the device." }
+      }
+    },
+    "set_air_temperature": {
+      "name": "Set air temperature",
+      "description": "Jumps a room's simulated air temperature.",
+      "fields": {
+        "room": { "name": "Room", "description": "The room." },
+        "temperature": { "name": "Temperature", "description": "New air temperature." }
+      }
+    },
+    "set_outdoor_temperature": {
+      "name": "Set outdoor temperature",
+      "description": "Sets the simulated outdoor temperature.",
+      "fields": {
+        "temperature": { "name": "Temperature", "description": "New outdoor temperature." }
+      }
+    },
+    "drop_connection": {
+      "name": "Drop connection",
+      "description": "Makes thermostats unavailable for a while, like a Matter connection hiccup.",
+      "fields": {
+        "entity_id": { "name": "Thermostats", "description": "Thermostats to disconnect." },
+        "seconds": { "name": "Duration", "description": "How long they stay unavailable." }
+      }
+    }
+  }
+}
