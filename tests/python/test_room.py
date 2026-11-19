@@ -10,10 +10,11 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.tado_x_matter_pro.const import DOMAIN
-from tests.python.conftest import HOUSE_OPTIONS, FakeTrv, house_entry, set_inputs
+from tests.python.conftest import BATHROOM, HOUSE_OPTIONS, KITCHEN, FakeTrv, house_entry, set_inputs
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
 
@@ -520,4 +521,147 @@ async def test_a_write_still_on_its_way_when_stopping_is_no_change_while_down(
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "eco"
+
+
+# --- WP7 scenarios: the owner's rules end to end ---
+
+
+async def open_window(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    set_inputs(hass, kitchen_window="on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 30)  # the open delay
+
+
+async def hold(hass: HomeAssistant, temperature: float) -> None:
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": "climate.kitchen_heating", "temperature": temperature},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_a_dial_turned_while_the_window_is_open_heats_until_the_next_opening(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    await open_window(hass, freezer)
+    assert trv_state(hass, "climate.kitchen_trv")[0] == "off"
+    trvs["climate.kitchen_trv"].dial(23.0, hvac_mode="heat")  # heat back on by hand
+    await advance(hass, freezer, 4)
+    assert mode(hass, "kitchen") == "manual"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 23.0)
+
+    set_inputs(hass, kitchen_window="off")  # closed: it keeps heating, no wait needed
+    await hass.async_block_till_done()
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 23.0)
+    await advance(hass, freezer, 5 * 60)
+    await open_window(hass, freezer)  # a new opening switches off again
+    assert trv_state(hass, "climate.kitchen_trv")[0] == "off"
+
+
+async def test_a_hold_from_before_the_window_returns_after_the_wait(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    await setup_house()
+    await hold(hass, 24)
+    await open_window(hass, freezer)
+    assert trv_state(hass, "climate.kitchen_trv")[0] == "off"
+    set_inputs(hass, kitchen_window="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)
+    assert mode(hass, "kitchen") == "manual"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 24.0)
+
+
+async def test_a_schedule_edge_during_an_opening_brings_the_plan_after_it(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    await setup_house()
+    await hold(hass, 24)
+    await open_window(hass, freezer)
+    set_inputs(hass, ground_floor="off")  # the block ends while the window is open
+    await hass.async_block_till_done()
+    set_inputs(hass, kitchen_window="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)
+    assert mode(hass, "kitchen") == "eco"  # the plan, not the old 24
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
+
+
+async def test_away_ends_holds_and_its_end_brings_the_plan(
+    hass: HomeAssistant, setup_house: Setup
+) -> None:
+    await setup_house()
+    await hold(hass, 23)
+    set_inputs(hass, away="on")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "eco"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
+    set_inputs(hass, away="off")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "schedule"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
+
+
+@pytest.mark.parametrize(
+    ("phase", "steps", "expected"),
+    [
+        ("opening", [("on", 10)], ("window", "off")),  # the rest of the open delay runs on
+        ("open", [("on", 30)], ("window", "off")),
+        ("waiting", [("on", 30), ("off", 60)], ("waiting", "off")),
+    ],
+)
+async def test_a_restart_in_each_window_phase_with_a_hold_writes_nothing_needless(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+    phase: str,
+    steps: list[tuple[str, int]],
+    expected: tuple[str, str],
+) -> None:
+    entry = await setup_house()
+    await hold(hass, 23)
+    for window, seconds in steps:
+        set_inputs(hass, kitchen_window=window)
+        await advance(hass, freezer, seconds)
+    writes = len(trvs["climate.kitchen_trv"].writes)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(trvs["climate.kitchen_trv"].writes) == writes, phase
+    await advance(hass, freezer, 25)  # the open delay ends for "opening"
+    assert (mode(hass, "kitchen"), trv_state(hass, "climate.kitchen_trv")[0]) == expected, phase
+
+    set_inputs(hass, kitchen_window="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)
+    assert mode(hass, "kitchen") == "manual", phase  # the hold survived
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 23.0), phase
+
+
+async def test_two_rooms_on_one_schedule_follow_it_and_keep_their_own_holds(
+    hass: HomeAssistant, setup_house: Setup, trvs: dict[str, FakeTrv]
+) -> None:
+    living = {**BATHROOM, "schedule": "schedule.ground_floor"}
+    await setup_house(house_entry({"Kitchen": KITCHEN, "Living": living}))
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
+    assert trv_state(hass, "climate.bath_trv") == ("heat", 21.0)
+
+    await hold(hass, 23)  # only the kitchen
+    assert trv_state(hass, "climate.bath_trv") == ("heat", 21.0)
+    living_mode = hass.states.get("sensor.living_mode")
+    assert living_mode is not None
+    assert living_mode.state == "schedule"
+
+    set_inputs(hass, ground_floor="off")  # one edge for both
+    await hass.async_block_till_done()
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
+    assert trv_state(hass, "climate.bath_tub_trv") == ("heat", 18.0)
     assert mode(hass, "kitchen") == "eco"

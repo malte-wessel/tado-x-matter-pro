@@ -241,6 +241,10 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    Window reminder ✅ 2026-11-19 (engine: `window_open_since`, `reminded`, overdue in the
    decision, wake-up at the due time; outdoor condition; notification via the house's notify
    actions from `messages.py`; *Window open too long* sensor; store 1.5). Issues ✅ (see above).
+   Acceptance ✅ 2026-11-19: the owner's rules as end-to-end scenarios against a real HA core with
+   fake Matter-like thermostats (delivery and drop-outs, windows with holds and dial turns, schedule
+   edges during an opening, resume, away, restarts in every window phase, shared schedules,
+   demand, chatter) – `tests/python/test_delivery.py`, `test_resume.py`, `test_room.py` and others.
 8. **Real-world rollout.** One room first next to the existing setup, then all rooms, then the old
    automations and helpers go. Done after one week without regressions.
 
