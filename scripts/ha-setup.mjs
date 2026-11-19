@@ -301,7 +301,8 @@ async function ensureDashboard(c) {
 async function main() {
   const onboarded = await onboard();
   const token = onboarded ?? (await login());
-  await ensureConfigEntry(token);
+  // TADO_SETUP_ENTRY=0 leaves adding the integration to you, to try its setup in the UI.
+  if (process.env.TADO_SETUP_ENTRY !== "0") await ensureConfigEntry(token);
   const session = await connect(token);
   await ensureSchedules(session);
   await ensureDashboard(session);

@@ -60,6 +60,8 @@ scripts/ha.sh reset    # remove the container and its config volume
 It runs the official Home Assistant image (version in `test/ha/.env`) with the integration mounted
 from your working copy; restart it after Python changes. `scripts/ha-setup.mjs` finishes onboarding,
 adds the integration with house settings, creates the schedules and the *Dev House* dashboard.
+`TADO_SETUP_ENTRY=0 scripts/ha.sh` does all of that except adding the integration, to try its
+setup in the UI (after `scripts/ha.sh reset` for a fresh start).
 
 The **Dev House** (`test/ha/custom_components/dev_house`, mounted only into the dev instance) is a
 fictional house to try the integration without hardware: 3 floors, 9 rooms, 11 Tado X-like
