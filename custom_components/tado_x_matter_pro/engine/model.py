@@ -22,7 +22,7 @@ class Mode(StrEnum):
     """What decides the room's target right now (the Mode sensor's state)."""
 
     SCHEDULE = "schedule"
-    IDLE = "idle"
+    ECO = "eco"  # outside blocks or while away: the eco temperature
     MANUAL = "manual"
     TIMED = "timed"  # an override that ends at a time, e.g. "eco until 14:00"
     BOOST = "boost"

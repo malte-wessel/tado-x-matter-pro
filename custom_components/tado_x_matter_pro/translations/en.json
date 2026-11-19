@@ -219,7 +219,7 @@
         "name": "Mode",
         "state": {
           "schedule": "Schedule",
-          "idle": "Idle",
+          "eco": "Eco",
           "manual": "Manual",
           "timed": "Timed",
           "boost": "Boost",

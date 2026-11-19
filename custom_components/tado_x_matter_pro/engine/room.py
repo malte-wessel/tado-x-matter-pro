@@ -91,7 +91,7 @@ class ExtendBlock:
 
 @dataclass(frozen=True, slots=True)
 class EndPreset:
-    """The room thermostat's preset "none": ends a boost and a preset's hold."""
+    """The room thermostat's preset "none": ends a boost, a preset's hold, a timed override."""
 
 
 type Change = ExternalChange | SetTemperature | SetMode | Resume | NumberChanged
@@ -146,7 +146,10 @@ def step(
 
 def _apply_plan_change(state: RoomState, inputs: Inputs, *, numbers_changed: bool) -> None:
     key = plan_key(inputs)
-    if numbers_changed or (state.plan_key is not None and key != state.plan_key):
+    # Only what the plan asks for counts: away on/off and its temperature. A block edge that
+    # changes nothing – while away, or into a block of the same temperature – keeps a hold.
+    old = state.plan_key
+    if numbers_changed or (old is not None and (old[2], old[3]) != (key[2], key[3])):
         override = state.override
         if override is not None and override.expires == Expiry.NEXT_CHANGE:
             state.override = None
@@ -225,15 +228,16 @@ def _apply_command(state: RoomState, command: Command, inputs: Inputs) -> None:
             state.boost = Boost(round_to_step(temperature), until)
         case SetOverride(temperature=temperature, until=until, preset=preset):
             state.boost = None  # a new choice of temperature ends a boost
-            state.override = Override(
-                round_to_step(temperature), until or Expiry.NEXT_CHANGE, preset=preset
-            )
+            _hold(state, temperature, until, preset)
         case ExtendBlock(until=until):
             state.boost = None
             state.override = Override(round_to_step(plan_target(inputs)), until)
-        case _:  # EndPreset
+        case _:  # EndPreset: ends a boost, a preset's hold and a timed override
             state.boost = None
-            if state.override is not None and state.override.preset is not None:
+            override = state.override
+            if override is not None and (
+                override.preset is not None or isinstance(override.expires, datetime)
+            ):
                 state.override = None
 
 
@@ -262,14 +266,24 @@ def _apply_change(state: RoomState, event: Change, inputs: Inputs) -> None:
             pass
 
 
-def _hold(state: RoomState, temperature: float) -> None:
-    """Hold until the next plan change; made while a window is open, the hold beats the window."""
+def _hold(
+    state: RoomState,
+    temperature: float,
+    until: datetime | None = None,
+    preset: str | None = None,
+) -> None:
+    """Hold a temperature someone set, until `until` or the next plan change.
+
+    Set while a window is open, it beats the window until the next opening; set during the wait
+    after a window, it ends the wait.
+    """
     if state.window is WindowPhase.WAITING:
         _set_window(state, WindowPhase.CLOSED, None)
     state.override = Override(
         round_to_step(temperature),
-        Expiry.NEXT_CHANGE,
+        until or Expiry.NEXT_CHANGE,
         window_ack=state.window is WindowPhase.OPEN,
+        preset=preset,
     )
 
 
@@ -307,7 +321,7 @@ def _decide(state: RoomState, inputs: Inputs, config: RoomConfig) -> Desired:
         mode = Mode.TIMED if until is not None else Mode.MANUAL
         desired = Desired("heat", override.temperature, mode, target, override_until=until)
     else:
-        mode = Mode.IDLE if inputs.idle or not inputs.schedule_on else Mode.SCHEDULE
+        mode = Mode.ECO if inputs.idle or not inputs.schedule_on else Mode.SCHEDULE
         desired = Desired("heat", target, mode, target)
     return _frost(state, desired, inputs, config)
 

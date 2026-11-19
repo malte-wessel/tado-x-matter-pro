@@ -44,7 +44,7 @@ async def test_rooms_follow_their_schedule(hass: HomeAssistant, setup_house: Set
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
     assert trv_state(hass, "climate.bath_trv") == ("heat", 18.0)
     assert mode(hass, "kitchen") == "schedule"
-    assert mode(hass, "bathroom") == "idle"
+    assert mode(hass, "bathroom") == "eco"
     room = hass.states.get("climate.kitchen_heating")
     assert room is not None
     assert room.state == "auto"
@@ -65,7 +65,7 @@ async def test_block_temperature_and_away(hass: HomeAssistant, setup_house: Setu
     set_inputs(hass, away="on")
     await hass.async_block_till_done()
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
 
 
 async def test_window_switches_off_after_the_delay_and_back_on(
@@ -140,7 +140,7 @@ async def test_dial_turn_holds_syncs_siblings_until_the_next_change(
 
     set_inputs(hass, bathroom="off")
     await hass.async_block_till_done()
-    assert mode(hass, "bathroom") == "idle"
+    assert mode(hass, "bathroom") == "eco"
     assert trv_state(hass, "climate.bath_trv") == ("heat", 18.0)
 
 
@@ -193,7 +193,7 @@ async def test_unavailable_inputs_keep_their_last_state(
     await hass.async_block_till_done()
     set_inputs(hass, away="unavailable")
     await hass.async_block_till_done()
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
 
 
@@ -212,7 +212,7 @@ async def test_inputs_unavailable_after_a_restart_keep_the_last_decision(
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
     assert trvs["climate.kitchen_trv"].writes[writes:] == []
 
 
@@ -282,7 +282,7 @@ async def test_room_thermostat_modes(hass: HomeAssistant, setup_house: Setup) ->
     )
     await hass.async_block_till_done()
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 18.0)
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
 
 
 async def test_numbers_change_the_plan(hass: HomeAssistant, setup_house: Setup) -> None:
@@ -362,7 +362,7 @@ async def test_an_away_sensor_that_never_reports_does_not_keep_rooms_idle(
     await setup_house(house_entry(options=options))
     set_inputs(hass, away="on")
     await hass.async_block_till_done()
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
     await advance(hass, freezer, 5 * 60)
 
     set_inputs(hass, away="off")
@@ -415,13 +415,13 @@ async def test_a_late_report_of_our_own_write_is_not_a_change_while_down(
     trv.dial(float(accepted[-1]["temperature"]))  # our value, without our context
     await hass.async_block_till_done()
     await advance(hass, freezer, 60)
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"
 
 
 async def test_a_dial_turned_while_stopped_is_a_hold_also_if_never_written(
@@ -520,4 +520,4 @@ async def test_a_write_still_on_its_way_when_stopping_is_no_change_while_down(
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert mode(hass, "kitchen") == "idle"
+    assert mode(hass, "kitchen") == "eco"

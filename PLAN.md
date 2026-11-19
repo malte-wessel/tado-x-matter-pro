@@ -19,7 +19,7 @@ Quality bar and tooling come from `pro-budget`.
 | Boost | Default 30 °C for 30 min (service may override both). A layer on top of the override slot; when it ends, whatever is underneath applies. |
 | Resume | Clears manual hold, timed override, room-off and boost, and skips the wait after a window closed. An open window still keeps the room off. |
 | Away / vacation | House-wide idle sensors. Switching them clears manual holds only; boost and timed overrides run out. |
-| Dial turned while a window is open | Respected: the room heats as a manual hold until the next plan change; a new opening switches off again. |
+| Temperature set while a window is open | Respected (dial, app, room climate, `set_override`, presets comfort/eco; decided 2026-11-19): the room heats until the hold or override ends; a new opening switches off again. Boost and extend block wait for the window. |
 | Windows | Per room: open delay (debounce, 30 s), close delay (5 min), reminder after N min (30, 0 = off). House-wide: outdoor condition (optional sensor, "only below N °C") and notify targets. |
 | Room temperature | Optional room sensor per room; fallback is the mean of the TRVs' own temperature sensors. |
 | Heating status | From an optional **heating demand entity** per TRV (subentry, second step): a `sensor` in % (heating from the house's threshold, default 3 %) or a `binary_sensor` (on = heating), e.g. a cloud integration's heating power or a pipe-temperature threshold helper. TRV off → `off`; demand unavailable → unknown. A status sensor only for TRVs with one; the room climate's `hvac_action`: off if all off, heating if any heats, idle if all known, else none. No inference from temperatures (decided 2026-11-19, see Findings), no staleness rule, no cloud calls. |
@@ -42,8 +42,10 @@ Quality bar and tooling come from `pro-budget`.
 - `schedule` exposes only the current block's data and `next_event`; the next block's temperature
   needs `schedule.get`. Block edges (including the midnight continuation of a block that runs past
   midnight) fire attribute-only changes; editing a schedule may fire only `state_reported`.
-- Only a change of the **plan key** (schedule on/off, block temperature, idle) is a plan change, so
-  attribute-only schedule updates do not reset manual holds.
+- Only a change of what the plan asks for – away on/off or the plan's temperature – is a plan
+  change (decided 2026-11-19), so attribute-only schedule updates, block edges while away and edges
+  into a block of the same temperature do not reset manual holds. (The stored plan key keeps
+  schedule on/off and the block temperature for the start fallback.)
 - Subentries: `async_get_supported_subentry_types`, `async_add_entities(..., config_subentry_id=)`;
   update listener → reload together with `async_update_and_abort` (`async_update_reload_and_abort`
   raises when the entry has update listeners).
@@ -96,8 +98,8 @@ Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.k
 
 | Entity | State / notes |
 | --- | --- |
-| `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from the demand entities; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
-| `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, plan_target, next_change, next_target, resume_at, override_until, boost_until, window` (absolute timestamps; next change/target forecast from `schedule.get_schedule` ✅ 2026-11-19). |
+| `climate` | Modes `auto` (the plan decides), `heat` (anything someone set: hold, timed override, extended block, boost; decided 2026-11-19), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from the demand entities; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
+| `sensor` Mode (enum) | `schedule, eco, manual, timed, boost, window, waiting, off, frost`; attributes `target, plan_target, next_change, next_target, resume_at, override_until, boost_until, window` (absolute timestamps; next change/target forecast from `schedule.get_schedule` ✅ 2026-11-19). |
 | `sensor` Next change | `device_class: timestamp`, attribute `target`: when the target changes next by itself. ✅ 2026-11-19 |
 | `sensor` Back on (rooms with windows) | `device_class: timestamp`: end of the wait after the windows closed; empty otherwise. ✅ 2026-10-27 |
 | `sensor` <TRV> heating (per TRV with a demand entity) | Enum `heating, reached, off` from that TRV's demand; attribute `demand` (unrecorded). Lets rooms with several radiators show which one heats. |

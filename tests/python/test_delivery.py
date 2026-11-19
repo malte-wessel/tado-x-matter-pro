@@ -49,7 +49,7 @@ async def test_a_schedule_edge_spreads_the_rooms_writes(
     ):
         set_inputs(hass, ground_floor="off", bathroom="on")  # one edge for both rooms
         await hass.async_block_till_done()
-    assert mode(hass, "kitchen_heating") == "idle"  # decided at once, written later
+    assert mode(hass, "kitchen_heating") == "eco"  # decided at once, written later
     assert setpoint(hass, KITCHEN_TRV) == ("heat", 21.0)
 
     await advance(hass, freezer, 10)
@@ -137,7 +137,7 @@ async def test_a_thermostat_that_was_unavailable_gets_the_change_when_it_returns
     kitchen.drop_out(available=True)
     await hass.async_block_till_done()
     assert setpoint(hass, KITCHEN_TRV) == ("heat", 18.0)
-    assert mode(hass, "kitchen_heating") == "idle"
+    assert mode(hass, "kitchen_heating") == "eco"
 
 
 async def test_a_dial_turned_while_the_thermostat_was_unavailable_is_a_hold(

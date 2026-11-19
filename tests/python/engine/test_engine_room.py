@@ -78,8 +78,8 @@ class Room:
     [
         (BLOCK, 21.0, Mode.SCHEDULE),
         (replace(BLOCK, block_temperature=22.5), 22.5, Mode.SCHEDULE),
-        (replace(BLOCK, schedule_on=False), 18.0, Mode.IDLE),
-        (replace(BLOCK, idle=True, block_temperature=22.5), 18.0, Mode.IDLE),
+        (replace(BLOCK, schedule_on=False), 18.0, Mode.ECO),
+        (replace(BLOCK, idle=True, block_temperature=22.5), 18.0, Mode.ECO),
         (replace(BLOCK, heating_temperature=21.3), 21.5, Mode.SCHEDULE),
         (replace(BLOCK, block_temperature=35.0), 30.0, Mode.SCHEDULE),  # what thermostats take
     ],
@@ -137,14 +137,14 @@ def test_manual_hold_lasts_until_the_next_plan_change() -> None:
     room.run(room_temperature=21.0)
     assert room.desired.mode is Mode.MANUAL
     room.run(schedule_on=False)
-    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.IDLE)
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.ECO)
 
 
 def test_away_clears_a_manual_hold() -> None:
     room = Room()
     room.run(SetTemperature(24.0))
     room.run(idle=True)
-    assert room.desired.mode is Mode.IDLE
+    assert room.desired.mode is Mode.ECO
 
 
 def test_changing_a_temperature_number_clears_a_hold() -> None:
@@ -194,7 +194,7 @@ def test_external_off_holds_off_until_the_next_change() -> None:
     room.run(ExternalChange("off", None))
     assert (room.desired.hvac_mode, room.desired.mode) == ("off", Mode.OFF)
     room.run(schedule_on=False)
-    assert room.desired.mode is Mode.IDLE
+    assert room.desired.mode is Mode.ECO
 
 
 def test_room_off_survives_plan_changes_until_resume() -> None:
@@ -203,7 +203,7 @@ def test_room_off_survives_plan_changes_until_resume() -> None:
     room.run(schedule_on=False)
     assert room.desired.mode is Mode.OFF
     room.run(Resume())
-    assert room.desired.mode is Mode.IDLE
+    assert room.desired.mode is Mode.ECO
 
 
 def test_mode_heat_holds_the_current_target_and_auto_releases_it() -> None:
@@ -233,7 +233,7 @@ def test_timed_override_expires() -> None:
     assert room.last.next_wakeup == until
     room.run(schedule_on=False)  # a plan change keeps a timed override
     assert room.desired.temperature == 23.0
-    assert room.at(3600).desired.mode is Mode.IDLE
+    assert room.at(3600).desired.mode is Mode.ECO
 
 
 def test_frost_floor_with_hysteresis() -> None:
@@ -281,7 +281,7 @@ def test_boost_is_a_layer_above_a_hold() -> None:
     room.run(schedule_on=False)  # a plan change ends the hold underneath, not the boost
     assert room.desired.mode is Mode.BOOST
     room.at(30 * 60)
-    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.IDLE)
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.ECO)
 
 
 def test_boost_ends_on_resume_and_on_a_change_by_hand() -> None:
@@ -321,7 +321,7 @@ def test_extend_block_keeps_the_current_plan_temperature() -> None:
     room.run(schedule_on=False)  # the block ends, the extension keeps 21
     assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.TIMED)
     room.at(120 * 60)
-    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.IDLE)
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.ECO)
 
 
 def test_preset_none_ends_a_boost_and_a_presets_hold_but_not_other_holds() -> None:
@@ -377,3 +377,35 @@ def test_a_new_override_ends_a_boost() -> None:
     room.run(StartBoost(30.0, at(30)))
     room.run(ExtendBlock(at(60)))
     assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.TIMED)
+
+
+def test_a_temperature_set_while_a_window_is_open_heats_until_the_next_opening() -> None:
+    room = Room()
+    room.run(window_open=True)
+    room.at(30)
+    assert room.desired.mode is Mode.WINDOW
+    room.run(SetOverride(22.0, preset="comfort"))  # a preset, set_override: like a dial
+    assert (room.desired.hvac_mode, room.desired.temperature) == ("heat", 22.0)
+    room.run(StartBoost(30.0, at(60)))  # a boost waits for the window
+    room.run(EndPreset())
+    room.run(window_open=False)
+    room.at(31)
+    room.run(window_open=True)
+    room.at(62)
+    assert room.desired.mode is Mode.WINDOW
+
+
+def test_while_away_a_block_edge_keeps_a_hold() -> None:
+    room = Room(replace(BLOCK, idle=True))
+    room.run(SetTemperature(22.0))
+    room.run(schedule_on=False)  # the block ends, but away keeps eco: nothing changes
+    assert (room.desired.temperature, room.desired.mode) == (22.0, Mode.MANUAL)
+    room.run(idle=False)  # away ends: a real change
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.ECO)
+
+
+def test_preset_none_ends_a_timed_override() -> None:
+    room = Room()
+    room.run(SetOverride(18.0, at(120)))
+    room.run(EndPreset())
+    assert room.desired.mode is Mode.SCHEDULE

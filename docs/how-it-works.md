@@ -18,7 +18,7 @@ The first rule that applies wins:
 | 3 | The room is switched off with its room thermostat | off | `off` |
 | 4 | A timed override runs (*set override* until a time or for a while, *extend block*) | heat at its temperature | `timed` |
 | 5 | A manual change is being held | heat at that temperature | `manual` |
-| 6 | An away sensor is on, or no schedule block is active | heat at the eco temperature | `idle` |
+| 6 | An away sensor is on, or no schedule block is active | heat at the eco temperature | `eco` |
 | 7 | A schedule block with its own `temperature` is active | heat at that temperature | `schedule` |
 | 8 | A schedule block is active | heat at the comfort temperature | `schedule` |
 | – | **Frost protection** applies on top of all of these | heat at least at the frost temperature | `frost` when it overrides *off* |
@@ -26,7 +26,7 @@ The first rule that applies wins:
 Two exceptions to the order:
 
 - A manual change made **while a window is open** wins over the window (see
-  [Windows](#a-dial-turned-while-the-window-is-open)).
+  [Windows](#a-temperature-set-while-the-window-is-open)).
 - **Frost protection** can switch a room on that rules 1 or 3 switched off.
 
 Targets are rounded to the thermostats' 0.5 °C step before they are written.
@@ -39,8 +39,9 @@ away sensor is on.
 
 A **plan change** happens when any of these change:
 
-- a schedule block starts or ends,
-- the active block's own temperature is different from the previous one,
+- the plan's temperature: a schedule block starts or ends, or the next block has a different
+  temperature of its own – a block edge that changes nothing (while away, or into a block of the
+  same temperature) is no plan change,
 - an away sensor switches on or off (more precisely: "any away sensor on" changes),
 - the room's comfort or eco temperature changes – either one, also the one the plan does not use
   right now: touching the heating settings means "follow the plan".
@@ -80,7 +81,7 @@ What ends a hold:
 
 | Event | Hold |
 | --- | --- |
-| Schedule block starts or ends | ends |
+| Schedule block starts or ends with another temperature | ends |
 | Away sensor on or off | ends |
 | Comfort or eco temperature changed | ends |
 | Room thermostat set to *auto* | ends |
@@ -96,8 +97,11 @@ whole:
 | You do | Effect |
 | --- | --- |
 | Set a temperature | A hold at that temperature until the next plan change (mode *heat*). |
-| Mode **heat** | A hold at the current target until the next plan change. |
-| Mode **auto** / turn on | Back to the plan: any hold or "room off" ends. |
+| Mode **heat** | A hold at the current target until the next plan change (during a boost: at the temperature underneath). |
+| Mode **auto** / turn on | Back to the plan: a hold, a timed override, a boost or "room off" ends. |
+
+The mode shows who decides: **auto** while the plan does, **heat** for anything someone set – a
+hold, a timed override, an extended block, a boost –, **off** while the room is switched off.
 | Mode **off** / turn off | The room is switched off **until you set it to auto or heat again** – plan changes do not switch it back on. A change at a thermostat (dial, tado° app) also ends it: it becomes a hold until the next plan change, and then the plan applies. Frost protection still applies. |
 
 Its *current temperature* is the room sensor (or the thermostats' mean). Its *action* is *off*
@@ -113,12 +117,12 @@ while all thermostats are off; whether it heats is known only from
   preset *none* do.
 - **Set override** (`tado_x_matter_pro.set_override`) heats at a temperature – or at the room's
   comfort or eco temperature as it is now – **until a time** (today, or tomorrow if that time has
-  passed), **for a while**, or – the default – **until the next plan change**, which is a hold like
-  a temperature set by hand. One with an end time survives schedule changes (mode `timed`).
+  passed), **for a while**, or – without either – **until the next plan change**, which is a hold
+  like a temperature set by hand. One with an end time survives schedule changes (mode `timed`).
 - **Extend block** (`tado_x_matter_pro.extend_block`) keeps the plan's current temperature until a
   time, whatever the schedule says – for example comfort an hour longer tonight.
 - **Presets** of the room thermostat: *comfort* and *eco* hold that temperature until the next
-  plan change; *boost* boosts; *none* ends a boost and a preset's hold.
+  plan change; *boost* boosts; *none* ends a boost, a preset's hold and a timed override.
 
 ## Back to the schedule
 
@@ -171,19 +175,20 @@ long turns on *Window open too long* and – once per opening – sends a notifi
 Home Assistant is). With an outdoor sensor and *Only below* set, the notification waits until it is
 colder outside than that.
 
-### A dial turned while the window is open
+### A temperature set while the window is open
 
-If someone turns a thermostat up while the room is off because of a window, that is taken as a
-deliberate wish: the room heats at that temperature despite the open window (mode `manual`). It
-stays like that until the next plan change, or until a window of the room is opened again after
-all were closed.
+If someone sets a temperature while the room is off because of a window – at the thermostat, in
+the tado° app, on the room thermostat, with `set_override` or the presets *comfort* / *eco* – that
+is taken as a deliberate wish: the room heats at that temperature despite the open window. It
+stays like that until it ends (the next plan change, or its end time), or until a window of the
+room is opened again after all were closed. A boost and *extend block* wait for the window.
 
-Turning a thermostat during the wait after closing ends the wait: the hold applies at once.
+Setting a temperature during the wait after closing ends the wait: it applies at once.
 
 ## Away and vacation
 
 The away sensors of the house settings are combined: while **any** of them is on, every room is in
-mode `idle` at its eco temperature. Switching away on or off is a plan change, so it ends manual
+mode `eco` at its eco temperature. Switching away on or off is a plan change, so it ends manual
 holds in every room. A room switched **off** stays off.
 
 ## Frost protection

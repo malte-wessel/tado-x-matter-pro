@@ -39,7 +39,7 @@ and the device in Home Assistant as usual; the integration finds them by their u
 
 | Property | Value |
 | --- | --- |
-| State (mode) | `auto` – follows the plan · `heat` – a manual hold · `off` – the room is switched off. A window pausing the room or frost protection heating it does not change this mode; the [Mode sensor](#mode) shows them. |
+| State (mode) | `auto` – the plan decides · `heat` – something someone set decides (a hold, a timed override, an extended block, a boost) · `off` – the room is switched off. A window pausing the room or frost protection heating it does not change this mode; the [Mode sensor](#mode) shows them. |
 | `temperature` | The current target. While a window pauses the room: the temperature it will return to (a hold's, or the plan's). Empty when the room is switched off – unless frost protection heats it, then the frost temperature. |
 | `current_temperature` | The room sensor; without one, the mean of the thermostats' readings. |
 | `hvac_action` | `off` while all thermostats are off; `heating` while any heats, `idle` when all have a status and none heats – only known from [heating demand entities](heating-status.md); empty otherwise. |
@@ -57,7 +57,7 @@ with the standard actions `climate.set_temperature`, `climate.set_hvac_mode`, `c
 | State | English | German | Meaning |
 | --- | --- | --- | --- |
 | `schedule` | Schedule | Zeitplan | A schedule block is active. |
-| `idle` | Idle | Leerlauf | No block active, or an away sensor is on: eco temperature. |
+| `eco` | Eco | Eco | No block active, or an away sensor is on: the eco temperature. |
 | `manual` | Manual | Manuell | A manual change is held. |
 | `timed` | Timed | Befristet | An override that ends at a time (set override until …, extend block). |
 | `boost` | Boost | Boost | A boost runs. |

@@ -120,7 +120,7 @@ async def test_an_override_until_the_next_change_is_a_hold(
     assert mode(hass) == "manual"
     set_inputs(hass, ground_floor="off")
     await hass.async_block_till_done()
-    assert mode(hass) == "idle"
+    assert mode(hass) == "eco"
 
 
 @pytest.mark.parametrize(
@@ -178,3 +178,32 @@ async def test_a_boost_for_a_whole_area(hass: HomeAssistant, setup_house: Setup)
     await hass.services.async_call(DOMAIN, "boost", {"area_id": "kitchen"}, blocking=True)
     await hass.async_block_till_done()
     assert mode(hass) == "boost"
+
+
+async def test_anything_but_the_plan_shows_heat_and_auto_ends_it(
+    hass: HomeAssistant, setup_house: Setup
+) -> None:
+    await setup_house()
+    for name, data in (
+        ("set_override", {"preset": "eco", "duration": {"hours": 2}}),
+        ("boost", {}),
+        ("extend_block", {"until": "23:59:00"}),
+    ):
+        await action(hass, name, **data)
+        assert hass.states.get(ROOM).state == "heat", name  # type: ignore[union-attr]
+        await hass.services.async_call(
+            "climate", "set_hvac_mode", {"entity_id": ROOM, "hvac_mode": "auto"}, blocking=True
+        )
+        await hass.async_block_till_done()
+        assert mode(hass) == "schedule", name
+        assert hass.states.get(ROOM).state == "auto"  # type: ignore[union-attr]
+
+
+async def test_preset_none_ends_a_timed_override(hass: HomeAssistant, setup_house: Setup) -> None:
+    await setup_house()
+    await action(hass, "set_override", temperature=19, duration={"hours": 2})
+    await hass.services.async_call(
+        "climate", "set_preset_mode", {"entity_id": ROOM, "preset_mode": "none"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert mode(hass) == "schedule"

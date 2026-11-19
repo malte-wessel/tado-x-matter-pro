@@ -75,6 +75,12 @@ Initial release.
   also back to a value the integration had written and the thermostat had confirmed before.
 - A write still on its way when Home Assistant stops is no manual change after the restart: the
   last value sent to each thermostat is stored (store 1.6).
+- The room thermostat shows *heat* for anything someone set (a hold, a timed override, an extended
+  block, a boost) and *auto* only while the plan decides; *auto* and the preset *none* end a timed
+  override. Every temperature a person sets while a window is open heats the room (also
+  `set_override` and the comfort/eco presets, like a dial). While away, a block edge that changes
+  nothing no longer ends a hold. The Mode sensor's state for the eco temperature is `eco` (was
+  `idle`, which clashed with the thermostat action *idle*).
 - A new override or extend block ends a running boost; block temperatures are kept within the
   thermostats' 5–30 °C; the room form does not offer the integration's own room thermostats; the
   logbook notes windows only when they switch a room off or back on.

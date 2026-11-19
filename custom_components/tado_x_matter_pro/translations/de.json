@@ -219,7 +219,7 @@
         "name": "Modus",
         "state": {
           "schedule": "Zeitplan",
-          "idle": "Leerlauf",
+          "eco": "Eco",
           "manual": "Manuell",
           "timed": "Befristet",
           "boost": "Boost",

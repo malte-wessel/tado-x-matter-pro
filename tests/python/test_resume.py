@@ -78,7 +78,7 @@ async def test_the_house_button_resumes_every_room(hass: HomeAssistant, setup_ho
         "button", "press", {"entity_id": "button.heating_resume_all_rooms"}, blocking=True
     )
     await hass.async_block_till_done()
-    assert (mode(hass, "kitchen_heating"), mode(hass, "bathroom")) == ("schedule", "idle")
+    assert (mode(hass, "kitchen_heating"), mode(hass, "bathroom")) == ("schedule", "eco")
     assert hass.states.get(OFF_SCHEDULE).state == "0"  # type: ignore[union-attr]
 
 

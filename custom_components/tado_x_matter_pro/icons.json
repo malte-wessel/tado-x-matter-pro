@@ -26,7 +26,7 @@
         "default": "mdi:thermostat",
         "state": {
           "schedule": "mdi:calendar-clock",
-          "idle": "mdi:leaf",
+          "eco": "mdi:leaf",
           "manual": "mdi:hand-back-right",
           "timed": "mdi:timer-outline",
           "boost": "mdi:rocket-launch",
