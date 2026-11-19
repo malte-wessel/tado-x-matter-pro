@@ -209,7 +209,8 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    Not yet: boost and timed-override services, the 100 % engine coverage gate, a reminder or
    repairs.
 3. **Engine (rest).** `engine/*` with table tests for the ladder, the clearing matrix, window timings and the
-   external classifier. Done at 100 % branch coverage of `engine/`.
+   external classifier. Done at 100 % branch coverage of `engine/`. Gate ✅ 2026-11-19: the
+   engine's own tests (no HA) must cover every branch; `scripts/check.sh` and CI enforce it.
 4. **Shell (rest).** TrvWriter ✅ 2026-11-19 (delivery, stale and reconnect rules, spread on
    schedule edges, unconfirmed repair; `tests/python/test_delivery.py`; the Dev House can hold
    writes and deliver them late). Flows, controller, TrvWriter, store, all entities; a fake Matter-like TRV in the

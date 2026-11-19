@@ -40,6 +40,8 @@ SWITCH_ON = Command(prev=("off", 18.0), want=("heat", 21.0), issued_at=T0, conte
         (None, HEAT_21, ("heat", 18.0), None, "x", 0, Report.IGNORED),
         (OFF_18, HEAT_18, ("off", None), None, "dial", 0, Report.EXTERNAL),
         (HEAT_21, OFF_18, ("off", None), None, "x", 0, Report.CONVERGED),
+        # a setpoint that disappears is a change, and nothing we sent
+        (HEAT_21, TrvView(True, "heat", None), ("heat", 21.0), None, "x", 0, Report.EXTERNAL),
     ],
 )
 def test_classify(

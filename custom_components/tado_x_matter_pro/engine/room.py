@@ -201,7 +201,7 @@ def _apply_command(state: RoomState, command: Command, inputs: Inputs) -> None:
             )
         case ExtendBlock(until=until):
             state.override = Override(round_to_step(plan_target(inputs)), until)
-        case EndPreset():
+        case _:  # EndPreset
             state.boost = None
             if state.override is not None and state.override.preset is not None:
                 state.override = None

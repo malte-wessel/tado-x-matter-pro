@@ -50,7 +50,7 @@ the decisions and the phases.
 ## Definition of done
 
 ```sh
-scripts/check.sh   # ruff check + ruff format --check + mypy + pytest
+scripts/check.sh   # ruff check + ruff format --check + mypy + pytest + engine branch coverage 100 %
 ```
 
 Then update `CHANGELOG.md`, and tick the phase in `PLAN.md` with the date and what actually happened.

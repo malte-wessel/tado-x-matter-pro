@@ -37,7 +37,7 @@ for every new rule.
 
 | Folder / file | Covers |
 | --- | --- |
-| `tests/python/engine/` | The engine: ladder, windows, holds, frost, the classifier, the heating status. No Home Assistant. |
+| `tests/python/engine/` (must cover every branch of `engine/`; `scripts/check.sh` fails otherwise) | The engine: ladder, windows, holds, frost, the classifier, the heating status. No Home Assistant. |
 | `tests/python/test_config_flow.py` | House form, options, adding and changing rooms. |
 | `tests/python/test_room.py` | Rooms in a real Home Assistant core with fake Matter-like thermostats: schedule, away, windows, dial turns, the room thermostat, numbers, reloads, restarts. |
 | `tests/python/test_delivery.py` | Writes despite lost, held (late) and hanging calls and drop-outs: retries, the repair issue, the spread on schedule edges, changes made while a thermostat was away. |
