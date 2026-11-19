@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections import Counter, deque
-from collections.abc import Callable
-from dataclasses import asdict
-from datetime import datetime, timedelta
+from collections.abc import Callable, Mapping
+from dataclasses import asdict, replace
+from datetime import datetime, time, timedelta
 import logging
 import random
 from statistics import fmean
@@ -17,10 +17,12 @@ from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
     EventStateChangedData,
+    EventStateReportedData,
     HomeAssistant,
     State,
     callback,
 )
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -30,6 +32,7 @@ from homeassistant.helpers.event import (
     async_call_later,
     async_track_point_in_utc_time,
     async_track_state_change_event,
+    async_track_state_report_event,
 )
 from homeassistant.util import dt as dt_util
 
@@ -58,6 +61,7 @@ from .const import (
     SECTION_WINDOW,
 )
 from .engine.external import Report, TrvView, classify
+from .engine.forecast import HORIZON, Block, Forecast, forecast
 from .engine.heating import Status, room_action, status as heating_status
 from .engine.log import entries as log_entries
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
@@ -95,6 +99,49 @@ PLAN_EDGE_SPREAD = timedelta(seconds=45)
 def random_delay() -> timedelta:
     """Return the delay of one room's writes for a schedule edge or away change."""
     return timedelta(seconds=random.uniform(0, PLAN_EDGE_SPREAD.total_seconds()))  # noqa: S311
+
+
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+def _time(value: Any) -> time | None:
+    if isinstance(value, time):
+        return value
+    if isinstance(value, str):
+        if value.startswith("24:00"):
+            return time.max
+        try:
+            return time.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
+
+
+def expand_week(week: Mapping[str, Any], now: datetime) -> list[Block]:
+    """Turn a schedule's weekly blocks (local times) into dated blocks in UTC around `now`."""
+    zone = dt_util.get_default_time_zone()
+    today = dt_util.as_local(now).date()
+    blocks = []
+    for offset in range(-1, HORIZON.days + 1):
+        day = today + timedelta(days=offset)
+        for entry in week.get(WEEKDAYS[day.weekday()]) or []:
+            start, end = _time(entry.get("from")), _time(entry.get("to"))
+            if start is None or end is None:
+                continue
+            ends = (
+                datetime.combine(day + timedelta(days=1), time(0), zone)
+                if end == time.max  # 24:00
+                else datetime.combine(day, end, zone)
+            )
+            data = entry.get("data") or {}
+            blocks.append(
+                Block(
+                    dt_util.as_utc(datetime.combine(day, start, zone)),
+                    dt_util.as_utc(ends),
+                    _float(data.get("temperature")),
+                )
+            )
+    return sorted(blocks, key=lambda block: block.start)
 
 
 def _duration(value: dict[str, Any] | None, default: timedelta) -> timedelta:
@@ -155,6 +202,10 @@ class RoomController:
         self.state: RoomState = state_from_dict(self._stored.get("state"))
         self.inputs: Inputs | None = None
         self.desired: Desired | None = None
+        # The schedule's weekly blocks (from schedule.get_schedule), and what they make of the room.
+        self._week: Mapping[str, Any] | None = None
+        self.forecast: Forecast | None = None
+        self._forecast_key: tuple[Any, ...] | None = None
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[CALLBACK_TYPE] = []
         self._wakeup: CALLBACK_TYPE | None = None
@@ -195,13 +246,6 @@ class RoomController:
             area_id = device.area_id if device else None
         area = ar.async_get(self.hass).async_get_area(area_id) if area_id else None
         return area.name if area else None
-
-    @property
-    def next_change(self) -> datetime | None:
-        """When the schedule switches next."""
-        state = self.hass.states.get(self.schedule)
-        value = state.attributes.get("next_event") if state else None
-        return value if isinstance(value, datetime) else None
 
     def demand_value(self, thermostat: str) -> float | bool | None:
         """Return the thermostat's demand: a number, on/off, or None when unknown."""
@@ -344,12 +388,17 @@ class RoomController:
     async def async_start(self) -> None:
         """Snapshot the thermostats, follow every input, decide."""
         self._views = {eid: self._view(eid) for eid in self.thermostats}
+        await self._async_fetch_week()
         self._starting = True
         self._unsubs.append(async_call_later(self.hass, START_GRACE, self._on_start_grace_over))
         inputs = [self.schedule, *self.idle_sensors, *self.windows]
         if self.room_sensor:
             inputs.append(self.room_sensor)
         self._unsubs.append(async_track_state_change_event(self.hass, inputs, self._on_input))
+        # Editing a schedule may change nothing in its state: only a report tells.
+        self._unsubs.append(
+            async_track_state_report_event(self.hass, [self.schedule], self._on_schedule_reported)
+        )
         self._unsubs.append(
             async_track_state_change_event(self.hass, self.thermostats, self._on_thermostat)
         )
@@ -442,7 +491,40 @@ class RoomController:
     @callback
     def _on_input(self, event: Event[EventStateChangedData]) -> None:
         entity_id = event.data["entity_id"]
+        if entity_id == self.schedule:
+            self._refresh_week()
         self._run(plan_edge=entity_id == self.schedule or entity_id in self.idle_sensors)
+
+    @callback
+    def _on_schedule_reported(self, _event: Event[EventStateReportedData]) -> None:
+        self._refresh_week()
+
+    @callback
+    def _refresh_week(self) -> None:
+        async def refresh() -> None:
+            await self._async_fetch_week()
+            self._update_forecast()
+            self._notify()
+
+        self.entry.async_create_background_task(
+            self.hass, refresh(), f"tado_x_matter_pro schedule {self.name}"
+        )
+
+    async def _async_fetch_week(self) -> None:
+        """Read the schedule's blocks; without them only deadlines are forecast."""
+        try:
+            response = await self.hass.services.async_call(
+                "schedule",
+                "get_schedule",
+                {"entity_id": self.schedule},
+                blocking=True,
+                return_response=True,
+            )
+        except HomeAssistantError:
+            self._week = None
+            return
+        week = response.get(self.schedule) if response else None
+        self._week = week if isinstance(week, Mapping) else None
 
     @callback
     def _on_start_grace_over(self, _now: datetime) -> None:
@@ -558,6 +640,7 @@ class RoomController:
         self.state = result.state
         self.desired = result.desired
         self._log(before, isinstance(event, Resume))
+        self._update_forecast()
         # Most runs are readings that change nothing: write to disk only when the state changed.
         stored = state_to_dict(self.state)
         if stored != self._stored.get("state"):
@@ -567,6 +650,26 @@ class RoomController:
         self._notify()
         spread = plan_edge and previous_key is not None and self.state.plan_key != previous_key
         self._deliver(random_delay() if spread else timedelta(0))
+
+    def _update_forecast(self) -> None:
+        """Work out the next change, unless nothing it depends on changed."""
+        if self.inputs is None or self.desired is None:
+            return
+        now = dt_util.utcnow()
+        # Readings alone hardly change the forecast; leave them out of what triggers it.
+        key = (
+            self._stored.get("state"),
+            replace(self.inputs, room_temperature=None),
+            self.desired,
+            id(self._week),
+        )
+        if key == self._forecast_key and (self.forecast is None or self.forecast.at > now):
+            return
+        self._forecast_key = key
+        blocks = expand_week(self._week, now) if self._week else []
+        self.forecast = forecast(
+            self.state, self.inputs, self.config, now, desired=self.desired, blocks=blocks
+        )
 
     def _log(self, before: RoomState, resumed: bool) -> None:  # noqa: FBT001
         """Fire an event for each logbook entry the step made (logbook.py words them)."""

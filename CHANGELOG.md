@@ -49,6 +49,11 @@ Initial release.
   current plan temperature until a time), and the presets boost / comfort / eco / none on the
   room thermostat. The Mode sensor shows `timed` and `boost`, with `override_until` and
   `boost_until`. Store 1.4 keeps boosts and presets across restarts.
+- The Mode sensor's `next_change` and `next_target` say when the room's target changes next by
+  itself and to what, from the schedule's blocks (`schedule.get_schedule`): right across midnight,
+  with a next block's own temperature, at the end of a hold, a timed override, a boost or the wait
+  after a window, and empty while away, off or with a window open. The same as a timestamp
+  sensor *Next change* per room, with the target as an attribute.
 - Logbook entries (English and German, by Home Assistant's language): manual holds, timed
   overrides, a room switched off, back to the schedule, switched off for a window and back on,
   boost and its end.

@@ -27,7 +27,7 @@ async def async_setup_entry(
     """Per room the mode, when heating resumes, and a status per thermostat with a demand."""
     registry = er.async_get(hass)
     for room_id, room in entry.runtime_data.rooms.items():
-        entities: list[SensorEntity] = [ModeSensor(room)]
+        entities: list[SensorEntity] = [ModeSensor(room), NextChange(room)]
         if room.windows:
             entities.append(BackOn(room))
         elif entity_id := registry.async_get_entity_id("sensor", DOMAIN, f"{room_id}_back_on"):
@@ -96,20 +96,12 @@ class ModeSensor(RoomEntity, SensorEntity):
         desired = self.room.desired
         if desired is None:
             return {}
-        inputs = self.room.inputs
-        next_change = self.room.next_change
-        next_target = None
-        if inputs is not None and next_change is not None:
-            next_target = (
-                inputs.idle_temperature
-                if inputs.schedule_on or inputs.idle
-                else inputs.heating_temperature
-            )
+        coming = self.room.forecast
         return {
             "target": desired.temperature,
             "plan_target": desired.plan_target,
-            "next_change": next_change.isoformat() if next_change else None,
-            "next_target": next_target,
+            "next_change": coming.at.isoformat() if coming else None,
+            "next_target": coming.temperature if coming else None,
             "resume_at": desired.resume_at.isoformat() if desired.resume_at else None,
             "override_until": desired.override_until.isoformat()
             if desired.override_until
@@ -117,6 +109,29 @@ class ModeSensor(RoomEntity, SensorEntity):
             "boost_until": desired.boost_until.isoformat() if desired.boost_until else None,
             "window": str(self.room.state.window),
         }
+
+
+class NextChange(RoomEntity, SensorEntity):
+    """When the room's target changes next by itself; its attribute `target` says to what."""
+
+    _attr_translation_key = "next_change"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, room: RoomController) -> None:
+        """Create the sensor."""
+        super().__init__(room, "next_change")
+
+    @property
+    def native_value(self) -> datetime | None:
+        """The moment; empty while nothing would change on its own."""
+        coming = self.room.forecast
+        return coming.at if coming else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The target from then on."""
+        coming = self.room.forecast
+        return {"target": coming.temperature if coming else None}
 
 
 class BackOn(RoomEntity, SensorEntity):

@@ -342,6 +342,7 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
         "binary_sensor.kitchen_heating_window_open",
         "sensor.kitchen_heating_back_on",
         "button.kitchen_heating_resume_schedule",
+        "sensor.kitchen_heating_next_change",
     }
     assert by_room[None] == {
         "button.heating_resume_all_rooms",

@@ -249,6 +249,14 @@
             "name": "Räume"
           }
         }
+      },
+      "next_change": {
+        "name": "Nächste Änderung",
+        "state_attributes": {
+          "target": {
+            "name": "Ziel"
+          }
+        }
       }
     },
     "button": {

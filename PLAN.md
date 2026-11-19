@@ -74,6 +74,7 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `config_flow.py` | Config flow, options flow (house), `RoomSubentryFlow` (user + reconfigure). |
 | `engine/model.py` | Dataclasses and enums: room config, room state, override, boost, window phase, TRV view, effects. |
 | `engine/log.py` | Which state changes are logbook entries. |
+| `engine/forecast.py` | The next change of the room's target: steps the room through block edges and deadlines. |
 | `engine/plan.py` | Priority ladder, plan key, next transitions from the weekly schedule. |
 | `engine/window.py` | Debounce state machine. |
 | `engine/room.py` | Reducer `step(state, inputs, event, now) -> (state, effects, next_wakeup)`. |
@@ -96,8 +97,8 @@ Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.k
 | Entity | State / notes |
 | --- | --- |
 | `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from the demand entities; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
-| `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, reason, plan_target, next_change, next_target, resume_at, override_until, boost_until` (absolute timestamps). |
-| `sensor` Next change | `device_class: timestamp`. (planned) |
+| `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, plan_target, next_change, next_target, resume_at, override_until, boost_until, window` (absolute timestamps; next change/target forecast from `schedule.get_schedule` ✅ 2026-11-19). |
+| `sensor` Next change | `device_class: timestamp`, attribute `target`: when the target changes next by itself. ✅ 2026-11-19 |
 | `sensor` Back on (rooms with windows) | `device_class: timestamp`: end of the wait after the windows closed; empty otherwise. ✅ 2026-10-27 |
 | `sensor` <TRV> heating (per TRV with a demand entity) | Enum `heating, reached, off` from that TRV's demand; attribute `demand` (unrecorded). Lets rooms with several radiators show which one heats. |
 | `number` Comfort temperature, Eco temperature | Store-backed, step 0.5. Comfort applies during schedule blocks, eco outside them and while away. |

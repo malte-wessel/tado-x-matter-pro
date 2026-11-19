@@ -249,6 +249,14 @@
             "name": "Rooms"
           }
         }
+      },
+      "next_change": {
+        "name": "Next change",
+        "state_attributes": {
+          "target": {
+            "name": "Target"
+          }
+        }
       }
     },
     "button": {

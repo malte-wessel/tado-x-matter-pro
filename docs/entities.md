@@ -6,6 +6,7 @@ Every room gets one device with these entities:
 | --- | --- | --- |
 | [Room thermostat](#room-thermostat) | `climate.kitchen_heating` | always |
 | [Mode](#mode) | `sensor.kitchen_heating_mode` | always |
+| [Next change](#next-change) | `sensor.kitchen_heating_next_change` | always |
 | [Comfort temperature](#numbers) | `number.kitchen_heating_comfort_temperature` | always |
 | [Eco temperature](#numbers) | `number.kitchen_heating_eco_temperature` | always |
 | [Window open](#window-open) | `binary_sensor.kitchen_heating_window_open` | if the room has windows or doors |
@@ -70,12 +71,18 @@ Attributes:
 | --- | --- |
 | `target` | The setpoint the thermostats are given; empty while they are off. |
 | `plan_target` | What the plan says right now (comfort, block, or eco temperature) – also while a hold or a window overrides it. |
-| `next_change` | When the schedule switches next (ISO time). |
-| `next_target` | The plan's temperature after that switch: the eco temperature when a block ends, the comfort temperature when one starts. A block's own temperature is not known in advance, so a block with its own temperature shows the comfort temperature here. While away: the eco temperature. |
+| `next_change` | When the room's target changes next **by itself** (ISO time): a block edge that changes the temperature (a block continuing past midnight at the same temperature is none), the end of a hold at the next plan change, the end of a timed override or a boost, the end of the wait after a window. Empty when nothing would change on its own – while away, while the room is off, while a window is open. |
+| `next_target` | The target then – also a next block's own temperature. With `target` and `next_change` a card can show "21 °C → 18 °C at 23:00". |
 | `resume_at` | While `waiting`: when heating resumes. |
 | `override_until` | When a timed override ends. |
 | `boost_until` | When a boost ends. |
 | `window` | The window phase: `closed`, `opening` (open, delay running), `open`, `waiting`. |
+
+## Next change
+
+`sensor.<area>_heating_next_change` (device class *timestamp*; German *Nächste Änderung*) – the
+Mode sensor's `next_change` as its own entity, so cards show it as relative time (*in 2 hours*).
+Attribute `target`: the temperature from then on. Empty while nothing would change by itself.
 
 ## Numbers
 
