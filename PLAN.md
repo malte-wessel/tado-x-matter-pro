@@ -23,6 +23,7 @@ Quality bar and tooling come from `pro-budget`.
 | Windows | Per room: open delay (debounce, 30 s), close delay (5 min), reminder after N min (30, 0 = off). House-wide: outdoor condition (optional sensor, "only below N °C") and notify targets. |
 | Room temperature | Optional room sensor per room; fallback is the mean of the TRVs' own temperature sensors. |
 | Heating status | From an optional **heating demand entity** per TRV (subentry, second step): a `sensor` in % (heating from the house's threshold, default 3 %) or a `binary_sensor` (on = heating), e.g. a cloud integration's heating power or a pipe-temperature threshold helper. TRV off → `off`; demand unavailable → unknown. A status sensor only for TRVs with one; the room climate's `hvac_action`: off if all off, heating if any heats, idle if all known, else none. No inference from temperatures (decided 2026-11-19, see Findings), no staleness rule, no cloud calls. |
+| Delivery | One writer per TRV (`trv.py`), never blocking the room or a service: confirm by the TRV's report, else send again – setpoint at 0 / +1 / +3 / +10 min, off at 0 / +30 s / +2 min; one call at a time, latest desired wins; nothing sent while unavailable (HA drops such calls); after the last attempt, a reconnect or a deviating report (≥ 10 min later) sends again; repair issue after 30 min unconfirmed. Schedule edges and away changes wait a random 0–45 s per room (not windows, user actions, numbers). Pending retries are not persisted: a restart reconciles. (decided 2026-11-19) |
 | Storage | `homeassistant.helpers.storage.Store`, key `tado_x_matter_pro`, versioned with migrations. Holds numbers, overrides, window phases, deadlines and TRV bookkeeping. No RestoreEntity. |
 | Install | HACS integration, public repo. |
 | Language | English names, keys and states everywhere; translations `strings.json` + `translations/{en,de}.json`. Logbook and notification texts (which HA cannot translate) come from `messages.py` by `hass.config.language`. |
@@ -78,7 +79,7 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `engine/external.py` | Classifies TRV reports: ours, intermediate, converged, external. |
 | `engine/heating.py` | Status from mode + demand + threshold; the room's action. |
 | `controller.py` | `RoomController`: listeners → events → `engine.step` → effects; one wakeup timer; serial event queue; trace ring buffer. |
-| `trv.py` | `TrvWriter`: reconcile desired vs. actual, expectation before the call, context ids, retry only on exception or unavailable. |
+| `trv.py` | `TrvWriter` per TRV: desired setting, expectation before the call, context ids, retry schedule, recent commands for stale deliveries, the unconfirmed repair issue. |
 | `store.py` | Store subclass with `_async_migrate_func` and minor version. |
 | `entity.py`, `climate.py`, `sensor.py`, `number.py`, `button.py`, `binary_sensor.py` | Entities. |
 | `services.py`, `services.yaml` | Entity services. |
@@ -152,10 +153,14 @@ Reconcile writes only on deviation, so reloads cause no writes.
 registered before the blocking service call. Each report that changes mode or setpoint is (1) ours
 when it carries our context id, (2) converged when it equals the desired value ±0.05 (also our own
 report arriving after its context expired), (3) intermediate within a 30 s settle window on the
-prev → want path, (4) otherwise external, coalesced over 4 s (dial bursts). Unavailable → available with a deviation is drift and re-applied. Setpoint-only reports
-while off are ignored. Counters and a trace go to diagnostics.
+prev → want path while our write is unconfirmed, (4) stale when it equals one of our commands of the
+last 20 min (max. 5) other than the desired one – a late delivery: re-send, no hold, (5) otherwise
+external, coalesced over 4 s (dial bursts). Unavailable → available: converged if it shows the
+desired value, reconnected (re-send) if it shows its last known value or one of our recent
+commands, else external (turned while HA could not see it). Setpoint-only reports while off are
+ignored. Counters and a trace go to diagnostics.
 
-**Issues (Repairs):** TRV unavailable > 30 min; window sensor chatter (bounces per hour); Tado app
+**Issues (Repairs):** TRV unconfirmed > 30 min (✅, covers unavailable); window sensor chatter (bounces per hour); Tado app
 likely overwriting setpoints (external changes in ≥ 2 rooms within 60 s).
 
 ## Repository layout
@@ -203,7 +208,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    repairs.
 3. **Engine (rest).** `engine/*` with table tests for the ladder, the clearing matrix, window timings and the
    external classifier. Done at 100 % branch coverage of `engine/`.
-4. **Shell (rest).** Flows, controller, TrvWriter, store, all entities; a fake Matter-like TRV in the
+4. **Shell (rest).** TrvWriter ✅ 2026-11-19 (delivery, stale and reconnect rules, spread on
+   schedule edges, unconfirmed repair; `tests/python/test_delivery.py`; the Dev House can hold
+   writes and deliver them late). Flows, controller, TrvWriter, store, all entities; a fake Matter-like TRV in the
    tests; the real `schedule` component with block data; time travel. Done when every behaviour of
    the ladder is reproduced against HA and a reload makes no writes.
 5. **Commands.** Services, presets, buttons, logbook (EN/DE), diagnostics. Tests include area targets.
@@ -242,8 +249,11 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
   barely moves it, so a trend rule reads "reached" while the radiator heats, lags at the edges and
   mistakes small bumps for heating. Only a source that knows the demand (the tado° cloud via some
   integration, or a pipe sensor) gives a usable status.
-- Open from that review: retry failed writes with backoff and a timeout; store the last command
-  next to the last report so a write in flight at shutdown is not a hold; repair issue for window
+- Home Assistant silently skips unavailable entities in entity service calls (only a log line), so
+  a write to an unavailable TRV is lost, not queued; the Matter server only queues writes while
+  the entity still shows available. Hence: nothing is sent while unavailable, a reconnect re-sends.
+- Open from that review: store the last command next to the last report so a write in flight at
+  shutdown is not a hold; repair issue for window
   contacts unavailable while open; away vs. vacation temperatures; `zone.home`/`person` as idle
   inputs; window detection from the temperature drop for rooms without contacts; an `away` mode
   separate from `idle`.

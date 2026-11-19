@@ -149,17 +149,33 @@ def _register_services(hass: HomeAssistant) -> None:
         sim.notify()
 
     async def drop_connection(call: ServiceCall) -> None:
-        """Make thermostats unavailable for a while, like a Matter/Thread hiccup."""
+        """Make thermostats unavailable for a while, like a Matter/Thread hiccup.
+
+        With `queue_writes` they stay available, but writes are held and delivered when the
+        connection is back – late, like the Matter server delivers them.
+        """
         sim = _sim(hass)
         ids = [_object_id(e) for e in call.data[ATTR_ENTITY_ID]]
+        queue = call.data.get("queue_writes", False)
         for object_id in ids:
-            sim.room_of_trv(object_id).trvs[object_id].available = False
+            trv = sim.room_of_trv(object_id).trvs[object_id]
+            if queue:
+                trv.queued = []
+            else:
+                trv.available = False
         sim.notify()
 
         @callback
         def _back(_now: datetime) -> None:
             for object_id in ids:
-                sim.room_of_trv(object_id).trvs[object_id].available = True
+                trv = sim.room_of_trv(object_id).trvs[object_id]
+                trv.available = True
+                queued, trv.queued = trv.queued or [], None
+                for mode, setpoint in queued:
+                    if mode is not None:
+                        trv.hvac_mode = mode
+                    if setpoint is not None:
+                        trv.setpoint = float(setpoint)
             sim.notify()
 
         async_call_later(hass, timedelta(seconds=call.data["seconds"]), _back)

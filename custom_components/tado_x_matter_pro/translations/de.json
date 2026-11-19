@@ -243,5 +243,11 @@
     "room": {
       "name": "Heizung"
     }
+  },
+  "issues": {
+    "thermostat_unconfirmed": {
+      "title": "{thermostat} übernimmt die Einstellung nicht",
+      "description": "Der Raum {room} hat {thermostat} vor mehr als 30 Minuten eine neue Einstellung geschickt, und das Thermostat hat sie nicht zurückgemeldet. Wahrscheinlich ist es im Thread-Netz schlecht erreichbar, oder die Batterien sind schwach.\n\nDie Integration sendet die Einstellung erneut, sobald sich das Thermostat wieder meldet; diese Meldung verschwindet, sobald es bestätigt."
+    }
   }
 }

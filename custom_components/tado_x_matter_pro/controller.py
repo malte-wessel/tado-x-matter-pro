@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timedelta
 import logging
+import random
 from statistics import fmean
 from typing import Any
 
@@ -15,14 +15,12 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
     CALLBACK_TYPE,
-    Context,
     Event,
     EventStateChangedData,
     HomeAssistant,
     State,
     callback,
 )
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -52,11 +50,12 @@ from .const import (
     DEFAULT_OPEN_DELAY_SECONDS,
     SECTION_WINDOW,
 )
-from .engine.external import SETTLE, Command, Report, TrvView, classify
+from .engine.external import Report, TrvView, classify
 from .engine.heating import Status, room_action, status as heating_status
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
 from .engine.room import Event as RoomEvent, ExternalChange, Resume, SetMode, SetTemperature, step
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
+from .trv import TrvWriter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +67,14 @@ TRACE_LENGTH = 200
 # After a start, inputs that have not reported yet keep the room's last decision this long; an
 # input still unknown after that (e.g. a deleted helper) counts as off.
 START_GRACE = timedelta(minutes=5)
+# Writes for a schedule edge or an away change wait a random part of this per room, so that a
+# house full of valves does not transmit in the same second.
+PLAN_EDGE_SPREAD = timedelta(seconds=45)
+
+
+def random_delay() -> timedelta:
+    """Return the delay of one room's writes for a schedule edge or away change."""
+    return timedelta(seconds=random.uniform(0, PLAN_EDGE_SPREAD.total_seconds()))  # noqa: S311
 
 
 def _duration(value: dict[str, Any] | None, default: timedelta) -> timedelta:
@@ -134,14 +141,15 @@ class RoomController:
         self._external_timer: CALLBACK_TYPE | None = None
         self._pending_external: ExternalChange | None = None
         self._views: dict[str, TrvView] = {}
-        self._commands: dict[str, Command] = {}
         # Last available state of each input: an unavailable one keeps its last known state.
         self._known: dict[str, State] = {}
         self._starting = False
-        self._reconcile_task: asyncio.Task[None] | None = None
-        self._reconcile_again = False
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
         self.counters: Counter[str] = Counter()
+        self.writers = {
+            eid: TrvWriter(hass, entry, eid, self.name, trace=self._trace, counters=self.counters)
+            for eid in self.thermostats
+        }
 
     # --- what entities read and call ---
 
@@ -247,10 +255,7 @@ class RoomController:
             "inputs": asdict(self.inputs) if self.inputs else None,
             "desired": asdict(self.desired) if self.desired else None,
             "views": {eid: asdict(view) for eid, view in self._views.items()},
-            "commands": {
-                eid: {**asdict(command), "context_ids": sorted(command.context_ids)}
-                for eid, command in self._commands.items()
-            },
+            "writers": {eid: writer.diagnostics() for eid, writer in self.writers.items()},
             "pending_external": asdict(self._pending_external) if self._pending_external else None,
             "heating": {
                 eid: {
@@ -304,8 +309,8 @@ class RoomController:
                 unsub()
         self._unsubs.clear()
         self._wakeup = self._external_timer = None
-        if self._reconcile_task is not None:
-            self._reconcile_task.cancel()
+        for writer in self.writers.values():
+            writer.stop()
 
     # --- inputs ---
 
@@ -369,8 +374,9 @@ class RoomController:
         return round(fmean(readings), 1) if readings else None
 
     @callback
-    def _on_input(self, _event: Event[EventStateChangedData]) -> None:
-        self._run()
+    def _on_input(self, event: Event[EventStateChangedData]) -> None:
+        entity_id = event.data["entity_id"]
+        self._run(plan_edge=entity_id == self.schedule or entity_id in self.idle_sensors)
 
     @callback
     def _on_start_grace_over(self, _now: datetime) -> None:
@@ -391,13 +397,17 @@ class RoomController:
         desired = (
             (self.desired.hvac_mode, self.desired.temperature) if self.desired else ("heat", None)
         )
+        writer = self.writers[entity_id]
+        known = self._stored["last_known"].get(entity_id)
         report = classify(
             old,
             new,
             desired=desired,
-            command=self._commands.get(entity_id),
+            command=writer.command,
             context_id=new_state.context.id if new_state else None,
             now=dt_util.utcnow(),
+            known=(known[0], known[1]) if known else None,
+            recent=writer.recent(),
         )
         self.counters[f"report_{report}"] += 1
         if report is not Report.IGNORED:
@@ -412,6 +422,9 @@ class RoomController:
             self._trace("availability", thermostat=entity_id, available=new.available)
         if new.available and report is not Report.INTERMEDIATE:
             self._remember(entity_id, new)  # what it settled on, by whomever
+        if new.available and report is not Report.EXTERNAL:
+            # A late delivery of an older write, or a thermostat back from a drop-out: send again.
+            writer.observe(new, resend=report in (Report.STALE, Report.RECONNECTED))
         if report is Report.EXTERNAL:
             _LOGGER.debug("%s: %s changed externally to %s", self.name, entity_id, new)
             self._pending_external = ExternalChange(new.hvac_mode or "off", new.setpoint)
@@ -422,7 +435,7 @@ class RoomController:
             )
             self._notify()  # the thermostat's heating status may have changed
             return
-        # Readings changed, or a thermostat came back: decide again (writes only on deviation).
+        # Readings changed, or a thermostat came back: decide again.
         self._run()
 
     @callback
@@ -462,7 +475,8 @@ class RoomController:
     # --- deciding ---
 
     @callback
-    def _run(self, event: RoomEvent | None = None) -> None:
+    def _run(self, event: RoomEvent | None = None, *, plan_edge: bool = False) -> None:
+        previous_key = self.state.plan_key
         self.inputs = self._read_inputs()
         result = step(self.state, self.inputs, self.config, dt_util.utcnow(), event)
         if event is not None:
@@ -483,7 +497,8 @@ class RoomController:
             self._store.save()
         self._schedule_wakeup(result.next_wakeup)
         self._notify()
-        self._schedule_reconcile()
+        spread = plan_edge and previous_key is not None and self.state.plan_key != previous_key
+        self._deliver(random_delay() if spread else timedelta(0))
 
     def _schedule_wakeup(self, when: datetime | None) -> None:
         if self._wakeup is not None:
@@ -499,70 +514,11 @@ class RoomController:
 
     # --- writing the thermostats ---
 
-    def _schedule_reconcile(self) -> None:
-        if self._reconcile_task is not None and not self._reconcile_task.done():
-            self._reconcile_again = True
-            return
-        self._reconcile_task = self.entry.async_create_background_task(
-            self.hass, self._async_reconcile(), f"tado_x_matter_pro reconcile {self.name}"
-        )
-
-    async def _async_reconcile(self) -> None:
-        while True:
-            self._reconcile_again = False
-            for entity_id in self.thermostats:
-                await self._async_write(entity_id)
-            if not self._reconcile_again:
-                return
-
-    async def _async_write(self, entity_id: str) -> None:
+    def _deliver(self, delay: timedelta) -> None:
+        """Hand the decision to each thermostat's writer; they send only what deviates."""
         desired = self.desired
-        view = self._view(entity_id)
-        if desired is None or not view.available or self._pending_external is not None:
+        if desired is None or self._pending_external is not None:
             # While a dial turn settles, the old target would turn it back; it becomes the hold.
             return
-        want = (desired.hvac_mode, desired.temperature)
-        if view.hvac_mode == want[0] and (
-            want[0] == "off"
-            or (
-                view.setpoint is not None
-                and want[1] is not None
-                and abs(view.setpoint - want[1]) <= TOLERANCE
-            )
-        ):
-            return
-        now = dt_util.utcnow()
-        last = self._commands.get(entity_id)
-        if last is not None and last.want == want and now - (last.returned_at or now) < SETTLE:
-            return  # already sent, the reports are still on their way
-        context = Context()
-        command = Command(
-            prev=(view.hvac_mode, view.setpoint), want=want, issued_at=now, context_ids={context.id}
-        )
-        self._commands[entity_id] = command
-        self.counters["write"] += 1
-        self._trace("write", thermostat=entity_id, want=list(want), context_id=context.id)
-        try:
-            if want[0] == "off":
-                await self.hass.services.async_call(
-                    "climate",
-                    "set_hvac_mode",
-                    {"entity_id": entity_id, "hvac_mode": "off"},
-                    blocking=True,
-                    context=context,
-                )
-            else:
-                await self.hass.services.async_call(
-                    "climate",
-                    "set_temperature",
-                    {"entity_id": entity_id, "temperature": want[1], "hvac_mode": "heat"},
-                    blocking=True,
-                    context=context,
-                )
-        except HomeAssistantError as err:
-            _LOGGER.warning("%s: writing %s failed: %s", self.name, entity_id, err)
-            self._commands.pop(entity_id, None)
-            self.counters["write_failed"] += 1
-            self._trace("write_failed", thermostat=entity_id, error=str(err))
-        finally:
-            command.returned_at = dt_util.utcnow()
+        for writer in self.writers.values():
+            writer.want((desired.hvac_mode, desired.temperature), delay)

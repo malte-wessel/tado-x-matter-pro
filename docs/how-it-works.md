@@ -169,11 +169,25 @@ After a restart, an input that has not reported yet keeps the room's last decisi
 still unknown after that counts as *off* (closed, not away, no block), so a deleted helper does not
 keep a room in eco for good.
 
-## Thermostats that drop out
+## Getting the setting to the thermostat
 
-A thermostat that is *unavailable* is not written. When it comes back, it is compared with what it
-should do and written if it differs – a value it had when it reconnected is not treated as a manual
-change.
+Tado X thermostats talk over Thread, and Thread links drop out. So every write is checked:
+
+- **Confirmed or sent again.** A write counts once the thermostat reports the new value. Until
+  then it is sent again: a setpoint after 1, 3 and 10 minutes, *off* after 30 seconds and
+  2 minutes. Each thermostat has its own sender, so one that does not answer never delays the
+  other thermostats of the room, other rooms, or the room thermostat's actions.
+- **Unavailable thermostats** are not written – Home Assistant would drop the call. When one comes
+  back, it gets what it should have. If it comes back with a value that is neither what it had
+  before nor anything the integration sent, someone turned it in the meantime: that becomes a hold.
+- **Late deliveries.** The Matter server can hold a write for a node it cannot reach and deliver it
+  minutes later, after newer ones. A value the integration sent in the last 20 minutes that shows up
+  late is recognised as its own: the current setting is sent again, and no hold starts.
+- **Schedule edges and away changes are spread:** each room waits a random 0–45 seconds before it
+  writes, so a house full of valves does not transmit in the same second. Windows, your own changes
+  and the room's numbers are written at once.
+- **A thermostat that has not confirmed a setting for 30 minutes** raises a repair issue
+  (Settings → System → Repairs). It goes away when the thermostat confirms.
 
 ## Restarts and reloads
 

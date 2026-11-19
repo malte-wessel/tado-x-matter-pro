@@ -91,6 +91,9 @@ class DevHouseThermostat(DevHouseEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Mode first, then the setpoint after the report delay (Matter writes both separately)."""
         mode = kwargs.get(ATTR_HVAC_MODE)
+        if self._trv.queued is not None:
+            self._trv.queued.append((mode, kwargs.get(ATTR_TEMPERATURE)))
+            return
         if mode is not None and mode != self._trv.hvac_mode:
             self._trv.hvac_mode = str(mode)
             self.async_write_ha_state()
@@ -103,6 +106,9 @@ class DevHouseThermostat(DevHouseEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch between off and heat after the report delay."""
+        if self._trv.queued is not None:
+            self._trv.queued.append((str(hvac_mode), None))
+            return
         await asyncio.sleep(self.report_delay)
         self._trv.hvac_mode = str(hvac_mode)
         self.async_write_ha_state()

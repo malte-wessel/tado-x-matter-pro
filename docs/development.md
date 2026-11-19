@@ -21,7 +21,8 @@ holds the design, the decisions and the phases.
 | `engine/room.py` | The reducer `step(state, inputs, config, now, event)` → new state, desired output, next wake-up: plan changes, expiries, the window state machine, events, the priority ladder, frost protection. |
 | `engine/external.py` | Classifies thermostat reports: ours, intermediate, converged, external. |
 | `engine/heating.py` | The heating / reached / off status from a thermostat's mode and demand; the room's action. |
-| `controller.py` | One room in Home Assistant: reads inputs, runs the engine, writes thermostats that deviate, stores state. |
+| `controller.py` | One room in Home Assistant: reads inputs, runs the engine, hands the result to the writers, stores state. |
+| `trv.py` | One writer per thermostat: sends what deviates, confirms, retries on a schedule, one call at a time, never blocks the room; the repair issue after 30 minutes unconfirmed. |
 | `store.py` | Persistence with versioned migrations. |
 | `config_flow.py` | House settings, options, the room subentry flow. |
 | `climate.py`, `sensor.py`, `number.py`, `binary_sensor.py`, `entity.py` | Entities; they only read the controller and call it. |
@@ -37,6 +38,7 @@ for every new rule.
 | `tests/python/engine/` | The engine: ladder, windows, holds, frost, the classifier, the heating status. No Home Assistant. |
 | `tests/python/test_config_flow.py` | House form, options, adding and changing rooms. |
 | `tests/python/test_room.py` | Rooms in a real Home Assistant core with fake Matter-like thermostats: schedule, away, windows, dial turns, the room thermostat, numbers, reloads, restarts. |
+| `tests/python/test_delivery.py` | Writes despite lost, held (late) and hanging calls and drop-outs: retries, the repair issue, the spread on schedule edges, changes made while a thermostat was away. |
 | `tests/python/test_heating_status.py` | Status sensors from demand entities (%, on/off, unavailable, threshold) and the room's action. |
 | `tests/python/test_store.py`, `tests/fixtures/storage/` | Older store versions load into the current shape. |
 
@@ -71,7 +73,7 @@ Actions of the Dev House (Developer tools → Actions):
 | --- | --- |
 | `dev_house.set_window` | Open, close or toggle contacts (the dashboard tiles toggle on tap). |
 | `dev_house.turn_dial` | Someone turning a thermostat: half-degree steps without a Home Assistant context. |
-| `dev_house.drop_connection` | Thermostats unavailable for a while, like a Matter hiccup. |
+| `dev_house.drop_connection` | Thermostats unavailable for a while, like a Matter hiccup. With *queue writes* they stay available, but writes are held and delivered when the time is up – late, like the Matter server does. |
 | `dev_house.set_air_temperature` | Jump a room's air temperature. |
 | `dev_house.set_outdoor_temperature` | Change the outdoor temperature. |
 

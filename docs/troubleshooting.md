@@ -60,6 +60,19 @@ carried in may need a minute or more.
 - **Late:** a cloud demand is only as fresh as its integration's polling. The status sensor's
   `demand` attribute shows the value it used.
 
+## A thermostat does not take its setting
+
+A repair issue *… does not take its setting* means the integration sent a thermostat a new setting
+and it has not reported it back for 30 minutes. The integration keeps trying: on a schedule first,
+then whenever the thermostat reports or reconnects. Usual causes:
+
+- **A weak Thread link** – the thermostat is far from the next router (a mains-powered Thread
+  device such as a smart plug, or the border router). Add a router nearby.
+- **Low batteries.**
+- **The thermostat is unavailable** in Home Assistant – check its Matter device page.
+
+The diagnostics' trace shows each attempt (`write`, `retry`, `gave_up`, `confirmed`).
+
 ## The entity ids look odd
 
 New entity ids are built from area + device + name. A room device called *Heating* in the area

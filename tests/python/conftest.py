@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -42,6 +45,15 @@ def _enable_custom_integrations(enable_custom_integrations: None) -> None:
     """Load custom_components/ for every test."""
 
 
+@pytest.fixture(autouse=True)
+def _no_plan_edge_spread() -> Iterator[None]:
+    """Write schedule edges at once; tests of the spread patch `random_delay` themselves."""
+    with patch(
+        "custom_components.tado_x_matter_pro.controller.random_delay", return_value=timedelta(0)
+    ):
+        yield
+
+
 class FakeTrv(ClimateEntity):
     """A thermostat as HA's Matter integration shows a Tado X: off/heat, no action.
 
@@ -73,12 +85,49 @@ class FakeTrv(ClimateEntity):
         self._attr_target_temperature = 18.0
         self._attr_current_temperature = 20.0
         self.writes: list[tuple[str, float | None]] = []
+        # Thread trouble: writes that never arrive, writes the Matter server delivers later
+        # (`deliver`), a call that does not return until `hang` is set.
+        self.lose_writes = False
+        self.queue_writes = False
+        self.queued: list[tuple[str | None, float | None]] = []
+        self.hang: asyncio.Event | None = None
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Mode first, then the setpoint (two reports)."""
         mode = kwargs.get(ATTR_HVAC_MODE)
         temperature = kwargs.get(ATTR_TEMPERATURE)
         self.writes.append((str(mode or self._attr_hvac_mode), temperature))
+        if await self._held(mode, temperature):
+            return
+        self._apply(mode, temperature)
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Switch off or on."""
+        self.writes.append((str(hvac_mode), None))
+        if await self._held(hvac_mode, None):
+            return
+        self._attr_hvac_mode = hvac_mode
+        self.async_write_ha_state()
+
+    async def _held(self, mode: str | None, temperature: float | None) -> bool:
+        if self.hang is not None:
+            await self.hang.wait()
+        if self.queue_writes:
+            self.queued.append((mode, temperature))
+        return self.lose_writes or self.queue_writes
+
+    def deliver(self) -> None:
+        """The queued writes arrive now, without their context (it expired long ago)."""
+        queued, self.queued = self.queued, []
+        self.async_set_context(Context())
+        for mode, temperature in queued:
+            if temperature is None and mode is not None:
+                self._attr_hvac_mode = HVACMode(mode)
+                self.async_write_ha_state()
+            else:
+                self._apply(mode, temperature)
+
+    def _apply(self, mode: str | None, temperature: float | None) -> None:
         if mode is not None and mode != self._attr_hvac_mode:
             self._attr_hvac_mode = HVACMode(mode)
             self.async_write_ha_state()
@@ -86,10 +135,9 @@ class FakeTrv(ClimateEntity):
             self._attr_target_temperature = float(temperature)
             self.async_write_ha_state()
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Switch off or on."""
-        self.writes.append((str(hvac_mode), None))
-        self._attr_hvac_mode = hvac_mode
+    def drop_out(self, *, available: bool) -> None:
+        """Become unavailable, or come back."""
+        self._attr_available = available
         self.async_write_ha_state()
 
     def read(self, temperature: float) -> None:

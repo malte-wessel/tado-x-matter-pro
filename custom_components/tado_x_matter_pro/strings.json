@@ -243,5 +243,11 @@
     "room": {
       "name": "Heating"
     }
+  },
+  "issues": {
+    "thermostat_unconfirmed": {
+      "title": "{thermostat} does not take its setting",
+      "description": "The room {room} sent {thermostat} a new setting more than 30 minutes ago, and the thermostat has not reported it back. It is probably hard to reach in the Thread network, or its batteries are low.\n\nThe integration sends the setting again when the thermostat reconnects or reports; this message goes away once it confirms."
+    }
   }
 }

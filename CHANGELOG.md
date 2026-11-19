@@ -36,6 +36,14 @@ Initial release.
 - Removing a thermostat from a room also removes its status sensor; status sensors are named after
   the thermostat also when it was not set up yet.
 - Settings that have no effect yet (boost, window reminder) are marked *planned* in the forms.
+- Reliable delivery: every write is confirmed by the thermostat's report or sent again (setpoints
+  after 1, 3 and 10 minutes, off after 30 seconds and 2 minutes), one call at a time per
+  thermostat, so a thermostat that does not answer never delays others or the room's actions.
+  Unavailable thermostats get the setting when they return; a value that appears late and was sent
+  by the integration earlier is re-sent instead of becoming a hold, while a thermostat that returns
+  with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
+- Schedule edges and away changes are spread over a random 0–45 seconds per room.
+- A dial turned back to the previous value right after the integration's write is now a hold.
 - The store is written only when something changed, not after every thermostat reading; the
   heating status sensors' `demand` attribute is not recorded (the demand entity keeps its own
   history).

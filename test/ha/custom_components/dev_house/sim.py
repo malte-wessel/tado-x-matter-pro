@@ -28,6 +28,9 @@ class TrvState:
     bias: float = BIAS_CLOSED
     valve_open: bool = False
     available: bool = True
+    # While set, writes are held and delivered later, like the Matter server does for a node it
+    # cannot reach: (mode, setpoint) in the order they were sent.
+    queued: list[tuple[str | None, float | None]] | None = None
 
 
 @dataclass

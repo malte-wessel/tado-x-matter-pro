@@ -20,7 +20,7 @@ the decisions and the phases.
 ## Rules that are not obvious from the code
 
 1. **Decisions live in the engine.** `engine/` decides what a room should do; the Home Assistant
-   side (`controller.py` and the entities) only collects inputs, runs `engine.step` and carries out
+   side (`controller.py`, `trv.py`, entities) only collects inputs, runs `engine.step` and carries out
    its effects. Never decide heating behaviour in an entity or a listener. The engine takes an explicit
    `now` (aware UTC); it never reads the clock.
 2. **The integration writes a TRV only when it deviates** from the desired state. A reload or restart

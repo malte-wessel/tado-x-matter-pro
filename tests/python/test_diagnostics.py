@@ -52,6 +52,9 @@ async def test_a_dial_turn_shows_up_in_the_trace(
         None,
         "ExternalChange(hvac_mode='heat', temperature=23.0)",
     ) in trace
+    writer = kitchen["writers"]["climate.kitchen_trv"]
+    assert writer["phase"] == "confirmed"
+    assert writer["desired"] == ["heat", 23.0]
     # without a demand entity nothing is known about heating
     assert kitchen["heating"]["climate.kitchen_trv"] == {
         "demand_entity": None,
