@@ -8,6 +8,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError, UnsupportedStorageVersionError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
@@ -57,7 +58,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HeatingConfigEntry) -> b
         if subentry.subentry_type == SUBENTRY_ROOM
     }
     store = HeatingStore(hass)
-    await store.async_load(set(rooms_config))
+    try:
+        await store.async_load(set(rooms_config))
+    except UnsupportedStorageVersionError as err:
+        # Written by a newer version of the integration: refuse rather than misread it.
+        raise ConfigEntryError(translation_domain=DOMAIN, translation_key="store_too_new") from err
     house = House(hass, entry)
     rooms = {
         subentry_id: RoomController(

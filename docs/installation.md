@@ -83,7 +83,17 @@ There is only one Tado X Matter Pro entry per Home Assistant; it holds all rooms
 ## Removing
 
 - **A room:** on the integration page, open the room's three-dot menu → *Delete*. Its device,
-  entities and stored state are removed. The thermostats stay at their last setpoint and mode.
+  entities, repair issues and stored state are removed.
 - **The integration:** Settings → Devices & services → Tado X Matter Pro → three-dot menu →
-  *Delete*. All rooms and the stored state go; the thermostats keep their last setpoint. Home
-  Assistant backups contain the stored state under `.storage/tado_x_matter_pro`.
+  *Delete*. All devices, entities, repair issues and the stored state
+  (`.storage/tado_x_matter_pro`) go. Home Assistant backups made before still contain it. The
+  history and logbook entries stay in the recorder like any integration's.
+
+In both cases nothing is written to the thermostats on the way out: they keep their last setpoint
+and mode. A room that was off for an open window stays off – set its thermostats yourself, or hand
+them back to the tado° app.
+
+**Updates** keep the stored state: older versions of it are migrated. A downgrade to an older
+version of the integration keeps working if only details were added since; if the stored state
+comes from a newer major version, the integration does not load and says so, rather than misread
+it.

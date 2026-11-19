@@ -60,10 +60,11 @@ class House:
 
     @callback
     def async_stop(self) -> None:
-        """Stop following; drop the house's missing-inputs issue."""
+        """Stop following; drop the house's issues (unload, reload, removal)."""
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
+        ir.async_delete_issue(self.hass, DOMAIN, ISSUE_OVERWRITING)
         if self._missing:
             ir.async_delete_issue(self.hass, DOMAIN, ISSUE_HOUSE_MISSING)
             self._missing = False

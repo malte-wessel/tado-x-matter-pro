@@ -417,6 +417,9 @@
   "exceptions": {
     "temperature_or_preset": {
       "message": "Give either a temperature or a preset."
+    },
+    "store_too_new": {
+      "message": "The stored rooms were written by a newer version of Tado X Matter Pro. Install that version again (or a newer one)."
     }
   }
 }

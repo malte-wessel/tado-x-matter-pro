@@ -43,6 +43,7 @@ for every new rule.
 | `tests/python/test_delivery.py` | Writes despite lost, held (late) and hanging calls and drop-outs: retries, the repair issue, the spread on schedule edges, changes made while a thermostat was away. |
 | `tests/python/test_heating_status.py` | Status sensors from demand entities (%, on/off, unavailable, threshold) and the room's action. |
 | `tests/python/test_store.py`, `tests/fixtures/storage/` | Older store versions load into the current shape. |
+| `tests/python/test_lifecycle.py` | Removing a room or the integration leaves nothing behind; a boost and a hold survive a restart; a newer store is refused, a newer minor one loads. |
 
 The fake thermostats (`tests/python/conftest.py`) behave like Tado X over Matter: only *off* and
 *heat*, mode and setpoint reported separately, a precise temperature sensor on the same device, and

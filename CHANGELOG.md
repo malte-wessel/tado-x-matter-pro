@@ -47,6 +47,9 @@ Initial release.
   (default 30, 0 = off), a *Window open too long* sensor turns on and – once per opening, and only
   below the house's outdoor temperature if set – a notification goes to the house's notify actions
   (English or German). Store 1.5.
+- Removing a room deletes its stored state from disk at once; unloading or removing the
+  integration also clears the "overwrites setpoints" issue. A store written by a newer major
+  version of the integration is refused with a clear message instead of failing.
 - Repair issues for a window contact that keeps bouncing (10 short openings within an hour), a
   window contact gone for 30 minutes while it last said open, setpoints changed outside the
   integration in two or more rooms within a few seconds (likely the tado° app), and entities a room

@@ -193,8 +193,11 @@ class HeatingStore:
         if loaded is not None:
             self.data = loaded
         rooms = self.data["rooms"]
-        for room_id in set(rooms) - room_ids:
+        removed = set(rooms) - room_ids
+        for room_id in removed:
             del rooms[room_id]
+        if removed:  # a room was removed: its state goes from disk too, not just at the next save
+            await self._store.async_save(self.data)
 
     def room(self, room_id: str) -> RoomDict:
         """Return the stored room, created with defaults on first use."""
