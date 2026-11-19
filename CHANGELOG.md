@@ -42,6 +42,9 @@ Initial release.
   Unavailable thermostats get the setting when they return; a value that appears late and was sent
   by the integration earlier is re-sent instead of becoming a hold, while a thermostat that returns
   with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
+- Repair issues for a window contact that keeps bouncing (10 short openings within an hour), a
+  window contact gone for 30 minutes while it last said open, and setpoints changed outside the
+  integration in two or more rooms within a minute (likely the tado° app).
 - Schedule edges and away changes are spread over a random 0–45 seconds per room.
 - Boost (`tado_x_matter_pro.boost`, house defaults 30 °C for 30 minutes, a layer that ends on
   resume or a change by hand), timed overrides (`set_override`: a temperature or the comfort/eco

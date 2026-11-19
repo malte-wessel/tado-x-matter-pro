@@ -15,6 +15,7 @@ from homeassistant.helpers.typing import ConfigType
 from .config_flow import TadoXMatterProConfigFlow
 from .const import DOMAIN, SUBENTRY_ROOM
 from .controller import RoomController
+from .house import House
 from .services import async_setup_services
 from .store import HeatingStore
 
@@ -36,6 +37,7 @@ class HeatingData:
 
     store: HeatingStore
     rooms: dict[str, RoomController]
+    house: House
 
 
 type HeatingConfigEntry = ConfigEntry[HeatingData]
@@ -56,11 +58,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HeatingConfigEntry) -> b
     }
     store = HeatingStore(hass)
     await store.async_load(set(rooms_config))
+    house = House(hass)
     rooms = {
-        subentry_id: RoomController(hass, entry, subentry, store)
+        subentry_id: RoomController(
+            hass, entry, subentry, store, on_manual_change=house.note_manual_change
+        )
         for subentry_id, subentry in rooms_config.items()
     }
-    entry.runtime_data = HeatingData(store, rooms)
+    entry.runtime_data = HeatingData(store, rooms, house)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def _start(_hass: HomeAssistant) -> None:

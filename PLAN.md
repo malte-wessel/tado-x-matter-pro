@@ -162,7 +162,8 @@ desired value, reconnected (re-send) if it shows its last known value or one of 
 commands, else external (turned while HA could not see it). Setpoint-only reports while off are
 ignored. Counters and a trace go to diagnostics.
 
-**Issues (Repairs):** TRV unconfirmed > 30 min (✅, covers unavailable); window sensor chatter (bounces per hour); Tado app
+**Issues (Repairs)** (all ✅ 2026-11-19): TRV unconfirmed > 30 min (covers unavailable); a window
+contact unavailable > 30 min while it last said open; window sensor chatter (bounces per hour); Tado app
 likely overwriting setpoints (external changes in ≥ 2 rooms within 60 s).
 
 ## Repository layout

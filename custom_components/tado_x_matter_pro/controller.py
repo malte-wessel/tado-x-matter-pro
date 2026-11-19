@@ -6,6 +6,7 @@ from collections import Counter, deque
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, replace
 from datetime import datetime, time, timedelta
+from functools import partial
 import logging
 import random
 from statistics import fmean
@@ -27,6 +28,7 @@ from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
     entity_registry as er,
+    issue_registry as ir,
 )
 from homeassistant.helpers.event import (
     async_call_later,
@@ -91,6 +93,10 @@ TRACE_LENGTH = 200
 # After a start, inputs that have not reported yet keep the room's last decision this long; an
 # input still unknown after that (e.g. a deleted helper) counts as off.
 START_GRACE = timedelta(minutes=5)
+# Repair issues: a window contact bouncing this often within the engine's bounce window (an hour),
+# and a contact unavailable this long while it last said open (the room stays off meanwhile).
+CHATTER_BOUNCES = 10
+CONTACT_ISSUE_AFTER = timedelta(minutes=30)
 # Writes for a schedule edge or an away change wait a random part of this per room, so that a
 # house full of valves does not transmit in the same second.
 PLAN_EDGE_SPREAD = timedelta(seconds=45)
@@ -164,9 +170,12 @@ class RoomController:
         entry: ConfigEntry,
         subentry: ConfigSubentry,
         store: HeatingStore,
+        *,
+        on_manual_change: Callable[[str], None] | None = None,
     ) -> None:
         """Read the room's configuration and its stored state."""
         self.hass = hass
+        self._on_manual_change = on_manual_change
         self.entry = entry
         self.room_id = subentry.subentry_id
         self.name = subentry.title
@@ -215,6 +224,8 @@ class RoomController:
         # Last available state of each input: an unavailable one keeps its last known state.
         self._known: dict[str, State] = {}
         self._starting = False
+        self._issues: set[str] = set()
+        self._contact_timers: dict[str, CALLBACK_TYPE] = {}
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
         self.counters: Counter[str] = Counter()
         self.writers = {
@@ -409,7 +420,7 @@ class RoomController:
                     self.hass, list(self.demand.values()), self._on_demand
                 )
             )
-        self._run(self._changed_while_down())
+        self._run(self._manual(self._changed_while_down()))
         # From now on a restart compares against what the thermostats have now, also those the
         # integration never had to write.
         for entity_id, view in self._views.items():
@@ -426,6 +437,11 @@ class RoomController:
         self._wakeup = self._external_timer = None
         for writer in self.writers.values():
             writer.stop()
+        for cancel in self._contact_timers.values():
+            cancel()
+        self._contact_timers.clear()
+        for issue_id in list(self._issues):
+            self._set_issue(issue_id, active=False)
 
     # --- inputs ---
 
@@ -591,7 +607,13 @@ class RoomController:
         self._external_timer = None
         change, self._pending_external = self._pending_external, None
         if change is not None:
-            self._run(change)
+            self._run(self._manual(change))
+
+    def _manual(self, change: ExternalChange | None) -> ExternalChange | None:
+        """Tell the house about a change made outside the integration; pass it on."""
+        if change is not None and self._on_manual_change is not None:
+            self._on_manual_change(self.name)
+        return change
 
     @callback
     def _notify(self) -> None:
@@ -641,6 +663,7 @@ class RoomController:
         self.desired = result.desired
         self._log(before, isinstance(event, Resume))
         self._update_forecast()
+        self._check_issues()
         # Most runs are readings that change nothing: write to disk only when the state changed.
         stored = state_to_dict(self.state)
         if stored != self._stored.get("state"):
@@ -650,6 +673,65 @@ class RoomController:
         self._notify()
         spread = plan_edge and previous_key is not None and self.state.plan_key != previous_key
         self._deliver(random_delay() if spread else timedelta(0))
+
+    def _check_issues(self) -> None:
+        """Raise or clear the room's repair issues: bouncing contacts, contacts gone while open."""
+        bounces = len(self.state.bounces)
+        self._set_issue(
+            f"chatter_{self.room_id}",
+            active=bounces >= CHATTER_BOUNCES,
+            key="window_chatter",
+            room=self.name,
+            count=str(bounces),
+        )
+        for entity_id in self.windows:
+            state = self.hass.states.get(entity_id)
+            gone = state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            known = self._known.get(entity_id)
+            last_open = (
+                known.state == STATE_ON
+                if known is not None
+                else (self.state.window in (WindowPhase.OPENING, WindowPhase.OPEN))
+            )
+            issue_id = f"contact_{entity_id}"
+            if gone and last_open:
+                if entity_id not in self._contact_timers and issue_id not in self._issues:
+                    self._contact_timers[entity_id] = async_call_later(
+                        self.hass, CONTACT_ISSUE_AFTER, partial(self._contact_gone, entity_id)
+                    )
+            else:
+                if (cancel := self._contact_timers.pop(entity_id, None)) is not None:
+                    cancel()
+                self._set_issue(issue_id, active=False)
+
+    @callback
+    def _contact_gone(self, entity_id: str, _now: datetime) -> None:
+        self._contact_timers.pop(entity_id, None)
+        self._set_issue(
+            f"contact_{entity_id}",
+            active=True,
+            key="window_contact_unavailable",
+            room=self.name,
+            contact=entity_id,
+        )
+
+    def _set_issue(
+        self, issue_id: str, *, active: bool, key: str = "", **placeholders: str
+    ) -> None:
+        if active and issue_id not in self._issues:
+            self._issues.add(issue_id)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=key,
+                translation_placeholders=placeholders,
+            )
+        elif not active and issue_id in self._issues:
+            self._issues.discard(issue_id)
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _update_forecast(self) -> None:
         """Work out the next change, unless nothing it depends on changed."""

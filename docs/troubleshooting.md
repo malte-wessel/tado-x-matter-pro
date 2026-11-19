@@ -78,6 +78,17 @@ then whenever the thermostat reports or reconnects. Usual causes:
 
 The diagnostics' trace shows each attempt (`write`, `retry`, `gave_up`, `confirmed`).
 
+## Repair issues
+
+Besides *… does not take its setting* (above), the integration raises these under Settings →
+System → Repairs:
+
+| Issue | Means | Goes away |
+| --- | --- | --- |
+| *A window contact of … keeps bouncing* | 10 openings within an hour were shorter than the room's open delay. The room ignored them; the contact or the door probably needs a look. | After an hour without bouncing. |
+| *Window contact … is gone while open* | The contact has been unavailable for 30 minutes and last said *open*, so the room stays off. | When it reports again. |
+| *Something overwrites setpoints in several rooms* | Thermostats in two or more rooms were changed outside the integration within a minute – usually the tado° app's schedule, manual-control setting or open window detection ([Prepare the tado° app](installation.md#prepare-the-tado-app)). | With the next restart. |
+
 ## The entity ids look odd
 
 New entity ids are built from area + device + name. A room device called *Heating* in the area

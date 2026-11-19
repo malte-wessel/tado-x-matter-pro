@@ -36,5 +36,5 @@ respects changes made at the thermostat, and tells you whether each radiator is 
 | Room thermostat | Auto (plan), heat (hold a temperature), off; presets boost / comfort / eco | – |
 | Overrides | Hold until the next change, room off until switched back, back to the schedule per room or for all rooms (action and buttons), boost, heat or eco until a time or for a while, extend the current block | – |
 | Heating status | Per thermostat heating / reached / off from an optional heating demand entity, room thermostat action | – |
-| Safety | Frost protection; every write confirmed or sent again; a repair issue when a thermostat does not take its setting | Repair issues for chattering contacts and tado° overwriting setpoints |
+| Safety | Frost protection; every write confirmed or sent again; repair issues for a thermostat that does not take its setting, bouncing window contacts, a contact gone while open, and something overwriting setpoints in several rooms | – |
 | Explanations | Mode sensor with target, next change and "back on at"; logbook entries (English, German); diagnostics with a trace | – |

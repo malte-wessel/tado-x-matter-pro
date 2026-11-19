@@ -294,6 +294,18 @@
     "thermostat_unconfirmed": {
       "title": "{thermostat} does not take its setting",
       "description": "The room {room} sent {thermostat} a new setting more than 30 minutes ago, and the thermostat has not reported it back. It is probably hard to reach in the Thread network, or its batteries are low.\n\nThe integration sends the setting again when the thermostat reconnects or reports; this message goes away once it confirms."
+    },
+    "window_chatter": {
+      "title": "A window contact of {room} keeps bouncing",
+      "description": "{count} openings in {room} in the last hour were shorter than the room's open delay. The room ignores them, but a contact that bounces usually has a loose magnet or a door that does not close properly.\n\nCheck the contact, or raise the room's \"Switch off after\" if people often open the door briefly. This message goes away after an hour without bouncing."
+    },
+    "window_contact_unavailable": {
+      "title": "Window contact {contact} is gone while open",
+      "description": "{contact} in {room} has been unavailable for 30 minutes, and the last it said was open – so {room} stays switched off until it reports again.\n\nCheck its battery and connection. If the window is closed, the room heats again as soon as the contact reports."
+    },
+    "tado_overwriting": {
+      "title": "Something overwrites setpoints in several rooms",
+      "description": "Thermostats in {rooms} were changed outside Tado X Matter Pro within a minute. People rarely do that at once; usually it is the tado° app's own schedule, its \"manual control\" setting or its open window detection.\n\nIn the tado° app: make the schedule flat, set manual changes to last until you cancel them, and switch off open window detection – see the installation guide. This message goes away with the next restart."
     }
   },
   "services": {
