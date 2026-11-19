@@ -11,7 +11,7 @@ SUBENTRY_ROOM: Final = "room"
 STORAGE_KEY: Final = DOMAIN
 # Major: breaking shape changes; minor: additive ones. Both migrate in store.py.
 STORAGE_VERSION: Final = 1
-STORAGE_MINOR_VERSION: Final = 3
+STORAGE_MINOR_VERSION: Final = 4
 
 # House options (config entry options)
 CONF_IDLE_SENSORS: Final = "idle_sensors"

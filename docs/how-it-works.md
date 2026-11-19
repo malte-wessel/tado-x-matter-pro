@@ -14,18 +14,20 @@ The first rule that applies wins:
 | # | Rule | Thermostats | Mode |
 | --- | --- | --- | --- |
 | 1 | A window is open (after the open delay), or the wait after closing runs | off | `window` / `waiting` |
-| 2 | The room is switched off with its room thermostat | off | `off` |
-| 3 | A manual change is being held | heat at that temperature | `manual` |
-| 4 | An away sensor is on, or no schedule block is active | heat at the eco temperature | `idle` |
-| 5 | A schedule block with its own `temperature` is active | heat at that temperature | `schedule` |
-| 6 | A schedule block is active | heat at the comfort temperature | `schedule` |
+| 2 | A boost runs | heat at the boost temperature | `boost` |
+| 3 | The room is switched off with its room thermostat | off | `off` |
+| 4 | A timed override runs (*set override* until a time or for a while, *extend block*) | heat at its temperature | `timed` |
+| 5 | A manual change is being held | heat at that temperature | `manual` |
+| 6 | An away sensor is on, or no schedule block is active | heat at the eco temperature | `idle` |
+| 7 | A schedule block with its own `temperature` is active | heat at that temperature | `schedule` |
+| 8 | A schedule block is active | heat at the comfort temperature | `schedule` |
 | – | **Frost protection** applies on top of all of these | heat at least at the frost temperature | `frost` when it overrides *off* |
 
 Two exceptions to the order:
 
 - A manual change made **while a window is open** wins over the window (see
   [Windows](#a-dial-turned-while-the-window-is-open)).
-- **Frost protection** can switch a room on that rules 1 or 2 switched off.
+- **Frost protection** can switch a room on that rules 1 or 3 switched off.
 
 Targets are rounded to the thermostats' 0.5 °C step before they are written.
 
@@ -101,6 +103,21 @@ whole:
 Its *current temperature* is the room sensor (or the thermostats' mean). Its *action* is *off*
 while all thermostats are off; whether it heats is known only from
 [heating demand entities](heating-status.md).
+
+## Boost, timed overrides, presets
+
+- **Boost** (`tado_x_matter_pro.boost`, or the room thermostat's preset *boost*) heats at the boost
+  temperature for the boost duration – both from the house settings unless the action gives them.
+  It is a layer on top: when it ends, whatever applied underneath applies again. Schedule changes
+  don't end it; *resume*, a change by hand (dial, app, room thermostat) and the preset *none* do.
+- **Set override** (`tado_x_matter_pro.set_override`) heats at a temperature – or at the room's
+  comfort or eco temperature as it is now – **until a time** (today, or tomorrow if that time has
+  passed), **for a while**, or – the default – **until the next plan change**, which is a hold like
+  a temperature set by hand. One with an end time survives schedule changes (mode `timed`).
+- **Extend block** (`tado_x_matter_pro.extend_block`) keeps the plan's current temperature until a
+  time, whatever the schedule says – for example comfort an hour longer tonight.
+- **Presets** of the room thermostat: *comfort* and *eco* hold that temperature until the next
+  plan change; *boost* boosts; *none* ends a boost and a preset's hold.
 
 ## Back to the schedule
 

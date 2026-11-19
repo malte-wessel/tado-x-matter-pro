@@ -2,26 +2,33 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     ATTR_HVAC_MODE,
+    PRESET_BOOST,
+    PRESET_COMFORT,
+    PRESET_ECO,
+    PRESET_NONE,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from . import HeatingConfigEntry
-from .const import MAX_TEMPERATURE, MIN_TEMPERATURE
+from .const import DOMAIN, MAX_TEMPERATURE, MIN_TEMPERATURE
 from .controller import RoomController
 from .engine.heating import Status
 from .engine.model import TEMPERATURE_STEP
 from .entity import RoomEntity
+from .services import next_local
 
 
 async def async_setup_entry(
@@ -45,6 +52,7 @@ class RoomThermostat(RoomEntity, ClimateEntity):
     _attr_max_temp = MAX_TEMPERATURE
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TURN_ON
         | ClimateEntityFeature.TURN_OFF
     )
@@ -53,6 +61,7 @@ class RoomThermostat(RoomEntity, ClimateEntity):
         """Create the room thermostat."""
         super().__init__(room, "climate")
         self._attr_hvac_modes = [HVACMode.AUTO, HVACMode.HEAT, HVACMode.OFF]
+        self._attr_preset_modes = [PRESET_NONE, PRESET_BOOST, PRESET_COMFORT, PRESET_ECO]
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -124,3 +133,51 @@ class RoomThermostat(RoomEntity, ClimateEntity):
     async def async_resume_schedule(self) -> None:
         """Back to the schedule; returns at once, the thermostats are written in the background."""
         self.room.resume()
+
+    @property
+    def preset_mode(self) -> str:
+        """Boost while it runs; comfort or eco while a preset holds; else none."""
+        return self.room.preset
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Boost as the house settings say; comfort or eco until the next plan change; none ends."""
+        if preset_mode == PRESET_BOOST:
+            self.room.boost()
+        elif preset_mode == PRESET_COMFORT:
+            self.room.set_override(self.room.heating_temperature, preset=PRESET_COMFORT)
+        elif preset_mode == PRESET_ECO:
+            self.room.set_override(self.room.idle_temperature, preset=PRESET_ECO)
+        else:
+            self.room.end_preset()
+
+    async def async_boost(
+        self, duration: timedelta | None = None, temperature: float | None = None
+    ) -> None:
+        """Boost; without fields as the house settings say."""
+        self.room.boost(temperature, duration)
+
+    async def async_set_override(
+        self,
+        temperature: float | None = None,
+        preset: str | None = None,
+        until: time | None = None,
+        duration: timedelta | None = None,
+        until_next_change: bool = False,  # noqa: FBT001, FBT002, ARG002 – the default anyway
+    ) -> None:
+        """Heat at a temperature (or comfort/eco) until a time, for a while, or the next change."""
+        if (temperature is None) == (preset is None):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="temperature_or_preset"
+            )
+        if temperature is None:
+            temperature = (
+                self.room.heating_temperature
+                if preset == PRESET_COMFORT
+                else self.room.idle_temperature
+            )
+        end = next_local(until) if until else (dt_util.utcnow() + duration if duration else None)
+        self.room.set_override(temperature, end)
+
+    async def async_extend_block(self, until: time) -> None:
+        """Keep the plan's current temperature until a time (today, or tomorrow if past)."""
+        self.room.extend_block(next_local(until))

@@ -34,6 +34,8 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_BOOST_DURATION,
+    CONF_BOOST_TEMPERATURE,
     CONF_CLOSE_DELAY,
     CONF_DEMAND,
     CONF_DEMAND_THRESHOLD,
@@ -44,22 +46,29 @@ from .const import (
     CONF_SCHEDULE,
     CONF_THERMOSTATS,
     CONF_WINDOWS,
+    DEFAULT_BOOST_MINUTES,
+    DEFAULT_BOOST_TEMPERATURE,
     DEFAULT_CLOSE_DELAY_MINUTES,
     DEFAULT_DEMAND_THRESHOLD,
     DEFAULT_FROST_TEMPERATURE,
     DEFAULT_OPEN_DELAY_SECONDS,
+    SECTION_BOOST,
     SECTION_WINDOW,
 )
 from .engine.external import Report, TrvView, classify
 from .engine.heating import Status, room_action, status as heating_status
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
 from .engine.room import (
+    EndPreset,
     Event as RoomEvent,
+    ExtendBlock,
     ExternalChange,
     NumberChanged,
     Resume,
     SetMode,
+    SetOverride,
     SetTemperature,
+    StartBoost,
     step,
 )
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
@@ -212,7 +221,7 @@ class RoomController:
     @property
     def off_schedule(self) -> bool:
         """Whether something other than the plan decides: what "resume" would end."""
-        return self.state.override is not None
+        return self.state.override is not None or self.state.boost is not None
 
     @property
     def action(self) -> Status | None:
@@ -239,6 +248,43 @@ class RoomController:
     def resume(self) -> None:
         """Back to the schedule."""
         self._run(Resume())
+
+    @callback
+    def boost(self, temperature: float | None = None, duration: timedelta | None = None) -> None:
+        """Heat hard for a while; without arguments as the house settings say."""
+        options = self.entry.options.get(SECTION_BOOST, {})
+        if temperature is None:
+            temperature = float(options.get(CONF_BOOST_TEMPERATURE, DEFAULT_BOOST_TEMPERATURE))
+        if duration is None:
+            duration = _duration(
+                options.get(CONF_BOOST_DURATION), timedelta(minutes=DEFAULT_BOOST_MINUTES)
+            )
+        self._run(StartBoost(temperature, dt_util.utcnow() + duration))
+
+    @callback
+    def set_override(
+        self, temperature: float, until: datetime | None = None, preset: str | None = None
+    ) -> None:
+        """Heat at `temperature` until `until` (UTC), or until the next plan change."""
+        self._run(SetOverride(temperature, until, preset))
+
+    @callback
+    def extend_block(self, until: datetime) -> None:
+        """Keep the plan's current temperature until `until` (UTC)."""
+        self._run(ExtendBlock(until))
+
+    @callback
+    def end_preset(self) -> None:
+        """End a boost and a preset's hold."""
+        self._run(EndPreset())
+
+    @property
+    def preset(self) -> str:
+        """The room thermostat's preset: boost, comfort or eco, else none."""
+        if self.state.boost is not None:
+            return "boost"
+        override = self.state.override
+        return override.preset if override is not None and override.preset else "none"
 
     @callback
     def set_number(self, key: str, value: float) -> None:

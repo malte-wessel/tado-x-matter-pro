@@ -51,6 +51,37 @@ data:
   temperature: 22.5
 ```
 
+## Boost the bathroom in the morning
+
+```yaml
+action: tado_x_matter_pro.boost
+target:
+  entity_id: climate.bathroom_heating
+data:
+  duration: "00:20:00"  # without: the house settings
+```
+
+## Eco until the afternoon, or for a while
+
+```yaml
+action: tado_x_matter_pro.set_override
+target:
+  entity_id: climate.office_heating
+data:
+  preset: eco          # or: temperature: 19
+  until: "14:00:00"    # or: duration: "02:00:00"; without either: until the next schedule change
+```
+
+## Comfort an hour longer tonight
+
+```yaml
+action: tado_x_matter_pro.extend_block
+target:
+  entity_id: climate.living_room_heating
+data:
+  until: "23:30:00"
+```
+
 ## Back to the plan
 
 ```yaml

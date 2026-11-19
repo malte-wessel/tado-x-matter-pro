@@ -3,3 +3,58 @@ resume_schedule:
     entity:
       integration: tado_x_matter_pro
       domain: climate
+boost:
+  target:
+    entity:
+      integration: tado_x_matter_pro
+      domain: climate
+  fields:
+    duration:
+      selector:
+        duration:
+    temperature:
+      selector:
+        number:
+          min: 5
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+set_override:
+  target:
+    entity:
+      integration: tado_x_matter_pro
+      domain: climate
+  fields:
+    temperature:
+      selector:
+        number:
+          min: 5
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+    preset:
+      selector:
+        select:
+          options:
+            - comfort
+            - eco
+          translation_key: preset
+    until:
+      selector:
+        time:
+    duration:
+      selector:
+        duration:
+    until_next_change:
+      selector:
+        boolean:
+extend_block:
+  target:
+    entity:
+      integration: tado_x_matter_pro
+      domain: climate
+  fields:
+    until:
+      required: true
+      selector:
+        time:

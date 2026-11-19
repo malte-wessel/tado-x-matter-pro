@@ -19,12 +19,16 @@ from custom_components.tado_x_matter_pro.engine.model import (
     WindowPhase,
 )
 from custom_components.tado_x_matter_pro.engine.room import (
+    EndPreset,
     Event,
+    ExtendBlock,
     ExternalChange,
     NumberChanged,
     Resume,
     SetMode,
+    SetOverride,
     SetTemperature,
+    StartBoost,
     Step,
     step,
 )
@@ -260,3 +264,71 @@ def test_open_delay_zero_switches_off_at_once() -> None:
 def test_never_expiring_override_keeps_no_wakeup() -> None:
     room = Room(state=RoomState(override=Override(None, Expiry.NEVER)))
     assert room.last.next_wakeup is None
+
+
+def at(minutes: float) -> datetime:
+    return T0 + timedelta(minutes=minutes)
+
+
+def test_boost_is_a_layer_above_a_hold() -> None:
+    room = Room()
+    room.run(SetOverride(23.0))
+    room.run(StartBoost(30.0, at(30)))
+    assert (room.desired.temperature, room.desired.mode) == (30.0, Mode.BOOST)
+    assert room.desired.boost_until == at(30)
+    assert room.last.next_wakeup == at(30)
+    room.run(schedule_on=False)  # a plan change ends the hold underneath, not the boost
+    assert room.desired.mode is Mode.BOOST
+    room.at(30 * 60)
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.IDLE)
+
+
+def test_boost_ends_on_resume_and_on_a_change_by_hand() -> None:
+    room = Room()
+    room.run(StartBoost(30.0, at(30)))
+    room.run(Resume())
+    assert room.desired.mode is Mode.SCHEDULE
+    room.run(StartBoost(30.0, at(30)))
+    room.run(ExternalChange("heat", 22.0))
+    assert (room.desired.temperature, room.desired.mode) == (22.0, Mode.MANUAL)
+
+
+def test_an_open_window_beats_a_boost() -> None:
+    room = Room()
+    room.run(StartBoost(30.0, at(30)))
+    room.run(window_open=True)
+    room.at(30)
+    assert (room.desired.hvac_mode, room.desired.mode) == ("off", Mode.WINDOW)
+    assert room.desired.boost_until == at(30)
+
+
+def test_a_timed_override_runs_until_its_time_and_survives_plan_changes() -> None:
+    room = Room()
+    room.run(SetOverride(18.0, at(60)))
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.TIMED)
+    assert room.desired.override_until == at(60)
+    room.run(schedule_on=False)
+    room.run(schedule_on=True)
+    assert room.desired.mode is Mode.TIMED
+    room.at(60 * 60)
+    assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.SCHEDULE)
+
+
+def test_extend_block_keeps_the_current_plan_temperature() -> None:
+    room = Room()
+    room.run(ExtendBlock(at(120)))
+    room.run(schedule_on=False)  # the block ends, the extension keeps 21
+    assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.TIMED)
+    room.at(120 * 60)
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.IDLE)
+
+
+def test_preset_none_ends_a_boost_and_a_presets_hold_but_not_other_holds() -> None:
+    room = Room()
+    room.run(SetOverride(18.0, preset="eco"))
+    room.run(StartBoost(30.0, at(30)))
+    room.run(EndPreset())
+    assert room.desired.mode is Mode.SCHEDULE
+    room.run(SetTemperature(23.0))
+    room.run(EndPreset())
+    assert (room.desired.temperature, room.desired.mode) == (23.0, Mode.MANUAL)

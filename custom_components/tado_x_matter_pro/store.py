@@ -16,7 +16,7 @@ from .const import (
     STORAGE_MINOR_VERSION,
     STORAGE_VERSION,
 )
-from .engine.model import Expiry, Override, RoomState, WindowPhase
+from .engine.model import Boost, Expiry, Override, RoomState, WindowPhase
 
 
 class OverrideDict(TypedDict):
@@ -25,6 +25,14 @@ class OverrideDict(TypedDict):
     temperature: float | None
     expires: str
     window_ack: bool
+    preset: str | None
+
+
+class BoostDict(TypedDict):
+    """A boost as stored."""
+
+    temperature: float
+    until: str
 
 
 class StateDict(TypedDict):
@@ -33,6 +41,7 @@ class StateDict(TypedDict):
     window: str
     window_deadline: str | None
     override: OverrideDict | None
+    boost: BoostDict | None
     plan_key: list[Any] | None
     frost_active: bool
     bounces: list[str]
@@ -77,7 +86,11 @@ def state_to_dict(state: RoomState) -> StateDict:
             if isinstance(override.expires, datetime)
             else str(override.expires),
             "window_ack": override.window_ack,
+            "preset": override.preset,
         },
+        "boost": None
+        if state.boost is None
+        else {"temperature": state.boost.temperature, "until": state.boost.until.isoformat()},
         "plan_key": list(state.plan_key) if state.plan_key is not None else None,
         "frost_active": state.frost_active,
         "bounces": [t.isoformat() for t in state.bounces],
@@ -96,12 +109,18 @@ def state_from_dict(data: StateDict | None) -> RoomState:
             if expires_raw in set(Expiry)
             else datetime.fromisoformat(expires_raw)
         )
-        override = Override(stored["temperature"], expires, stored.get("window_ack", False))
+        override = Override(
+            stored["temperature"], expires, stored.get("window_ack", False), stored.get("preset")
+        )
+    boost = None
+    if (stored_boost := data.get("boost")) is not None:
+        boost = Boost(stored_boost["temperature"], datetime.fromisoformat(stored_boost["until"]))
     key = data.get("plan_key")
     return RoomState(
         window=WindowPhase(data.get("window", WindowPhase.CLOSED)),
         window_deadline=_dt(data.get("window_deadline")),
         override=override,
+        boost=boost,
         plan_key=(key[0], key[1], key[2], key[3]) if key else None,
         frost_active=data.get("frost_active", False),
         bounces=[datetime.fromisoformat(t) for t in data.get("bounces", [])],
@@ -127,6 +146,13 @@ class _Storage(Store[StoreData]):
             # 1.2 kept an inferred heating status per thermostat; 1.3 takes it from demand entities
             for room in rooms.values():
                 room.pop("status", None)
+        if old_major_version == 1 and old_minor_version < 4:
+            # 1.4: boost, and the preset that made an override
+            for room in rooms.values():
+                if (state := room.get("state")) is not None:
+                    state.setdefault("boost", None)
+                    if state.get("override") is not None:
+                        state["override"].setdefault("preset", None)
         return {"rooms": rooms}
 
 

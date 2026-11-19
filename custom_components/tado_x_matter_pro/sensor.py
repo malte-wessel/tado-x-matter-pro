@@ -114,6 +114,7 @@ class ModeSensor(RoomEntity, SensorEntity):
             "override_until": desired.override_until.isoformat()
             if desired.override_until
             else None,
+            "boost_until": desired.boost_until.isoformat() if desired.boost_until else None,
             "window": str(self.room.state.window),
         }
 

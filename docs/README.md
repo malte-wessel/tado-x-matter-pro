@@ -5,9 +5,9 @@ Matter, one room at a time. You tell it which thermostats, schedule and window c
 room; it keeps the thermostats on the right temperature, switches them off while a window is open,
 respects changes made at the thermostat, and tells you whether each radiator is actually heating.
 
-> **Status: pre-release.** Room control, back to the schedule and the heating status work and are
-> covered by tests. Boost, timed overrides ("heat until …", "eco until …"), the window reminder
-> and most repair issues are planned; their settings can already be entered but have no effect yet. See
+> **Status: pre-release.** Room control, back to the schedule, boost, timed overrides and the
+> heating status work and are covered by tests. The window reminder and most repair issues are
+> planned; their settings can already be entered but have no effect yet. See
 > [What works today](#what-works-today).
 
 ## Pages
@@ -33,8 +33,8 @@ respects changes made at the thermostat, and tells you whether each radiator is 
 | Plan | Comfort temperature during schedule blocks, a block's own temperature, eco outside blocks and while away | – |
 | Windows | Switch off after an open delay, back on after a close delay, short openings ignored | Reminder when a window stays open |
 | Manual changes | Held until the next schedule change; rooms with several thermostats follow | – |
-| Room thermostat | Auto (plan), heat (hold a temperature), off | Presets boost / comfort / eco |
-| Overrides | Hold until the next change, room off until switched back, back to the schedule per room or for all rooms (action and buttons) | Boost, heat or eco until a time, extend the current block |
+| Room thermostat | Auto (plan), heat (hold a temperature), off; presets boost / comfort / eco | – |
+| Overrides | Hold until the next change, room off until switched back, back to the schedule per room or for all rooms (action and buttons), boost, heat or eco until a time or for a while, extend the current block | – |
 | Heating status | Per thermostat heating / reached / off from an optional heating demand entity, room thermostat action | – |
 | Safety | Frost protection; every write confirmed or sent again; a repair issue when a thermostat does not take its setting | Repair issues for chattering contacts and tado° overwriting setpoints |
 | Explanations | Mode sensor with target, next change and "back on at"; diagnostics with a trace | Logbook entries |

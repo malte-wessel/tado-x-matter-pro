@@ -16,7 +16,7 @@
         },
         "sections": {
           "boost": {
-            "name": "Boost (geplant)",
+            "name": "Boost",
             "data": {
               "temperature": "Temperatur",
               "duration": "Dauer"
@@ -58,7 +58,7 @@
         },
         "sections": {
           "boost": {
-            "name": "Boost (geplant)",
+            "name": "Boost",
             "data": {
               "temperature": "Temperatur",
               "duration": "Dauer"
@@ -189,6 +189,8 @@
           "schedule": "Zeitplan",
           "idle": "Leerlauf",
           "manual": "Manuell",
+          "timed": "Befristet",
+          "boost": "Boost",
           "window": "Fenster",
           "waiting": "Wartet",
           "off": "Aus",
@@ -215,6 +217,9 @@
           },
           "window": {
             "name": "Fensterphase"
+          },
+          "boost_until": {
+            "name": "Boost bis"
           }
         }
       },
@@ -253,6 +258,20 @@
       "resume_all": {
         "name": "Alle Räume zurück zum Zeitplan"
       }
+    },
+    "climate": {
+      "room": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "none": "Keine",
+              "boost": "Boost",
+              "comfort": "Komfort",
+              "eco": "Eco"
+            }
+          }
+        }
+      }
     }
   },
   "device": {
@@ -273,6 +292,69 @@
     "resume_schedule": {
       "name": "Zurück zum Zeitplan",
       "description": "Zurück zum Zeitplan: beendet manuelle Änderungen, zeitlich begrenzte Vorgaben, Boost und einen ausgeschalteten Raum und überspringt die Wartezeit nach einem geschlossenen Fenster. Ein offenes Fenster hält den Raum weiter aus. Kehrt sofort zurück; die Thermostate werden im Hintergrund geschrieben."
+    },
+    "boost": {
+      "name": "Boost",
+      "description": "Heizt einen Raum eine Weile kräftig; danach gilt wieder, was vorher galt. Endet früher mit „Zurück zum Zeitplan“ oder einer Änderung von Hand.",
+      "fields": {
+        "duration": {
+          "name": "Dauer",
+          "description": "Leer: die Haus-Einstellung."
+        },
+        "temperature": {
+          "name": "Temperatur",
+          "description": "Leer: die Haus-Einstellung."
+        }
+      }
+    },
+    "set_override": {
+      "name": "Vorgabe setzen",
+      "description": "Heizt einen Raum auf eine Temperatur – oder seine Komfort- bzw. Eco-Temperatur – bis zu einer Uhrzeit, für eine Dauer oder bis zur nächsten Zeitplanänderung.",
+      "fields": {
+        "temperature": {
+          "name": "Temperatur",
+          "description": "Entweder eine Temperatur oder ein Preset."
+        },
+        "preset": {
+          "name": "Preset",
+          "description": "Komfort oder Eco: die eigene Temperatur des Raums dafür, wie sie jetzt ist."
+        },
+        "until": {
+          "name": "Bis",
+          "description": "Eine Uhrzeit; ist sie heute vorbei, morgen."
+        },
+        "duration": {
+          "name": "Dauer",
+          "description": "Wie lange, ab jetzt."
+        },
+        "until_next_change": {
+          "name": "Bis zur nächsten Änderung",
+          "description": "Der Standard: bis sich der Zeitplan das nächste Mal ändert."
+        }
+      }
+    },
+    "extend_block": {
+      "name": "Block verlängern",
+      "description": "Hält die aktuelle Plan-Temperatur des Raums bis zu einer Uhrzeit, egal was der Zeitplan sagt – z. B. abends länger Komfort.",
+      "fields": {
+        "until": {
+          "name": "Bis",
+          "description": "Eine Uhrzeit; ist sie heute vorbei, morgen."
+        }
+      }
+    }
+  },
+  "selector": {
+    "preset": {
+      "options": {
+        "comfort": "Komfort",
+        "eco": "Eco"
+      }
+    }
+  },
+  "exceptions": {
+    "temperature_or_preset": {
+      "message": "Gib entweder eine Temperatur oder ein Preset an."
     }
   }
 }

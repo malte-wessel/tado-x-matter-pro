@@ -217,6 +217,10 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    Resume ✅ 2026-11-19: `resume_schedule` (platform entity service, area/floor/label targets reach
    only the room climates), a button per room, a house device ("Heating") with *Resume all rooms*
    and *Rooms off schedule* (count + rooms with their modes). Returns at once.
+   Boost, `set_override`, `extend_block` and presets ✅ 2026-11-19: boost is a layer (window >
+   boost > override > plan), ended by expiry, resume, a change by hand or preset none, not by plan
+   changes; timed overrides survive plan changes; `until` is local and rolls to tomorrow; presets
+   comfort/eco are holds until the next change tagged with the preset. Store 1.4. Open: logbook.
    Diagnostics ✅ pulled forward 2026-10-27: house options (notify targets redacted) and per room
    inputs, decision, stored state, thermostat views and commands, report counters and a trace of
    the last 200 reports, decisions and writes; also per room device.

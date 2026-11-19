@@ -43,6 +43,12 @@ Initial release.
   by the integration earlier is re-sent instead of becoming a hold, while a thermostat that returns
   with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
 - Schedule edges and away changes are spread over a random 0–45 seconds per room.
+- Boost (`tado_x_matter_pro.boost`, house defaults 30 °C for 30 minutes, a layer that ends on
+  resume or a change by hand), timed overrides (`set_override`: a temperature or the comfort/eco
+  temperature until a time, for a while, or until the next schedule change), `extend_block` (the
+  current plan temperature until a time), and the presets boost / comfort / eco / none on the
+  room thermostat. The Mode sensor shows `timed` and `boost`, with `override_until` and
+  `boost_until`. Store 1.4 keeps boosts and presets across restarts.
 - Back to the schedule: the action `tado_x_matter_pro.resume_schedule` (also with area, floor and
   label targets, which reach only the room thermostats), a *Resume schedule* button per room, and a
   house device with *Resume all rooms* and *Rooms off schedule* (the count, with the rooms and their

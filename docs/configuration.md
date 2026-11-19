@@ -19,12 +19,12 @@ made with the room thermostat.
 | **Frost protection** | 7 °C | No room is heated to less than this, and a room that is switched off or has a window open is heated to this when its temperature drops below it. See [frost protection](how-it-works.md#frost-protection). |
 | **Heating demand threshold** | 3 % | From this demand on, a thermostat with a percentage [heating demand entity](heating-status.md) counts as heating. |
 
-Section **Boost** (collapsed) – *planned, stored but not used yet*
+Section **Boost** (collapsed)
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| Temperature | 30 °C | What boost will heat to (30 °C opens the valve fully). |
-| Duration | 30 min | How long a boost will last. |
+| Temperature | 30 °C | What a boost heats to (30 °C opens the valve fully). |
+| Duration | 30 min | How long a boost lasts. The `boost` action can give its own temperature and duration. |
 
 Section **Window reminder** (collapsed) – *planned, stored but not used yet*
 

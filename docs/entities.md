@@ -41,6 +41,7 @@ and the device in Home Assistant as usual; the integration finds them by their u
 | `temperature` | The current target. While a window pauses the room: the temperature it will return to (a hold's, or the plan's). Empty when the room is switched off – unless frost protection heats it, then the frost temperature. |
 | `current_temperature` | The room sensor; without one, the mean of the thermostats' readings. |
 | `hvac_action` | `off` while all thermostats are off; `heating` while any heats, `idle` when all have a status and none heats – only known from [heating demand entities](heating-status.md); empty otherwise. |
+| `preset_mode` | `boost` while a boost runs, `comfort` / `eco` while that preset holds, else `none` ([presets](how-it-works.md#boost-timed-overrides-presets)). |
 | Range / step | 5–30 °C, 0.5 °C |
 
 What setting it does is described in [How it works](how-it-works.md#the-room-thermostat). It works
@@ -56,6 +57,8 @@ with the standard actions `climate.set_temperature`, `climate.set_hvac_mode`, `c
 | `schedule` | Schedule | Zeitplan | A schedule block is active. |
 | `idle` | Idle | Leerlauf | No block active, or an away sensor is on: eco temperature. |
 | `manual` | Manual | Manuell | A manual change is held. |
+| `timed` | Timed | Befristet | An override that ends at a time (set override until …, extend block). |
+| `boost` | Boost | Boost | A boost runs. |
 | `window` | Window | Fenster | A window is open; thermostats are off. |
 | `waiting` | Waiting | Wartet | All windows closed, the close delay runs. |
 | `off` | Off | Aus | The room is switched off with its room thermostat. |
@@ -70,7 +73,8 @@ Attributes:
 | `next_change` | When the schedule switches next (ISO time). |
 | `next_target` | The plan's temperature after that switch: the eco temperature when a block ends, the comfort temperature when one starts. A block's own temperature is not known in advance, so a block with its own temperature shows the comfort temperature here. While away: the eco temperature. |
 | `resume_at` | While `waiting`: when heating resumes. |
-| `override_until` | For overrides that end at a time (planned: boost, heat/eco until). |
+| `override_until` | When a timed override ends. |
+| `boost_until` | When a boost ends. |
 | `window` | The window phase: `closed`, `opening` (open, delay running), `open`, `waiting`. |
 
 ## Numbers

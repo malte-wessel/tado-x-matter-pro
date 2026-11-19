@@ -24,6 +24,8 @@ class Mode(StrEnum):
     SCHEDULE = "schedule"
     IDLE = "idle"
     MANUAL = "manual"
+    TIMED = "timed"  # an override that ends at a time, e.g. "eco until 14:00"
+    BOOST = "boost"
     WINDOW = "window"
     WAITING = "waiting"
     OFF = "off"
@@ -67,6 +69,16 @@ class Override:
     expires: Expiry | datetime = Expiry.NEXT_CHANGE
     # Made while a window was open: the room heats despite the window until the next opening.
     window_ack: bool = False
+    # Set by a preset of the room thermostat ("comfort" or "eco"), which shows it as its preset.
+    preset: str | None = None
+
+
+@dataclass(slots=True)
+class Boost:
+    """Heat hard for a while; a layer above the override, which applies again when it ends."""
+
+    temperature: float
+    until: datetime
 
 
 @dataclass(slots=True)
@@ -76,6 +88,7 @@ class RoomState:
     window: WindowPhase = WindowPhase.CLOSED
     window_deadline: datetime | None = None
     override: Override | None = None
+    boost: Boost | None = None
     plan_key: tuple[bool, float | None, bool, float] | None = None
     frost_active: bool = False
     bounces: list[datetime] = field(default_factory=list)
@@ -91,6 +104,7 @@ class Desired:
     plan_target: float
     resume_at: datetime | None = None
     override_until: datetime | None = None
+    boost_until: datetime | None = None
 
 
 def round_to_step(value: float) -> float:
