@@ -1,8 +1,8 @@
 # Tado X Matter Pro – guide for coding agents
 
 A Home Assistant custom integration (HACS category _integration_) that controls Tado X thermostats
-connected over Matter, room by room. Python only. Read this file first; `PLAN.md` holds the design,
-the decisions and the phases.
+connected over Matter, room by room. Python only. Read this file first; `docs/how-it-works.md`
+describes the behaviour.
 
 ## Map
 
@@ -53,7 +53,7 @@ the decisions and the phases.
 scripts/check.sh   # ruff check + ruff format --check + mypy + pytest + engine branch coverage 100 %
 ```
 
-Then update `CHANGELOG.md`, and tick the phase in `PLAN.md` with the date and what actually happened.
+Then add a line to `CHANGELOG.md` under the next version and update the docs that describe the change.
 
 ## Conventions
 

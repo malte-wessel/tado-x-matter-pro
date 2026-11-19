@@ -9,8 +9,7 @@ scripts/check.sh --fix   # format and autofix first
 ```
 
 The definition of done is a green `scripts/check.sh` plus a line in `CHANGELOG.md`.
-[AGENTS.md](../AGENTS.md) lists the rules that are not obvious from the code; [PLAN.md](../PLAN.md)
-holds the design, the decisions and the phases.
+[AGENTS.md](../AGENTS.md) lists the rules that are not obvious from the code.
 
 ## Code layout
 
