@@ -65,6 +65,7 @@ class TrvWriter:
         *,
         trace: Callable[..., None],
         counters: Counter[str],
+        on_send: Callable[[str, Want], None] | None = None,
     ) -> None:
         """Start without a desired setting; the room's first decision sets it."""
         self.hass = hass
@@ -73,6 +74,7 @@ class TrvWriter:
         self.room = room
         self._trace = trace
         self._counters = counters
+        self._on_send = on_send
         self.desired: Want | None = None
         self.phase = Phase.CONFIRMED
         self.command: Command | None = None
@@ -95,8 +97,11 @@ class TrvWriter:
         """Make `setting` the desired one; send it unless the thermostat already shows it."""
         view = self._view()
         if setting != self.desired:
-            if self.command is not None and self.command.want == self.desired:
-                self._recent.append((self.command.want, dt_util.utcnow()))  # it was sent
+            command = self.command
+            if command is not None and command.want == self.desired and not command.confirmed:
+                # Sent but never confirmed: it may still be delivered late. A confirmed one
+                # cannot, so the same value reported later is somebody's change.
+                self._recent.append((command.want, dt_util.utcnow()))
             self.desired = setting
             self.command = None
             if matches(view, setting):
@@ -278,6 +283,8 @@ class TrvWriter:
         self.command.issued_at = now
         self.command.returned_at = None
         self._last_attempt = now
+        if self._on_send is not None:
+            self._on_send(self.entity_id, want)  # stored before it is sent: see a restart
         self._counters["write"] += 1
         self.stats["attempts"] += 1
         self._trace(

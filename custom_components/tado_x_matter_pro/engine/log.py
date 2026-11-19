@@ -76,16 +76,17 @@ def _override(before: Override | None, after: Override | None) -> list[Entry]:
 
 
 def _window(before: RoomState, after: RoomState) -> list[Entry]:
-    acknowledged = after.override is not None and after.override.window_ack
-    if (
-        after.window is WindowPhase.OPEN
-        and before.window not in (WindowPhase.OPEN, WindowPhase.WAITING)
-        and not acknowledged
-    ):
+    # Only news if the window is what switches the room: not for a room that is off anyway, nor
+    # for one that heats despite the window (a temperature set while it was open).
+    if after.override is not None and after.override.temperature is None:
+        return []
+    paused = (WindowPhase.OPEN, WindowPhase.WAITING)
+    if after.window is WindowPhase.OPEN and before.window not in paused and not _ack(after):
         return [Entry(Kind.WINDOW_OFF)]
-    if after.window is WindowPhase.CLOSED and before.window in (
-        WindowPhase.OPEN,
-        WindowPhase.WAITING,
-    ):
+    if after.window is WindowPhase.CLOSED and before.window in paused and not _ack(before):
         return [Entry(Kind.WINDOW_ON)]
     return []
+
+
+def _ack(state: RoomState) -> bool:
+    return state.override is not None and state.override.window_ack

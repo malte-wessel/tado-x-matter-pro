@@ -223,8 +223,19 @@ class RoomSubentryFlow(ConfigSubentryFlow):
                 return await self.async_step_demand()
             current = user_input
         return self.async_show_form(
-            step_id=step_id, data_schema=_room_schema(current), errors=errors
+            step_id=step_id,
+            data_schema=_room_schema(current, self._room_thermostats()),
+            errors=errors,
         )
+
+    def _room_thermostats(self) -> list[str]:
+        """Return this integration's own room thermostats: never a room's thermostat."""
+        registry = er.async_get(self.hass)
+        return [
+            e.entity_id
+            for e in er.async_entries_for_config_entry(registry, self._get_entry().entry_id)
+            if e.domain == "climate"
+        ]
 
     async def async_step_demand(
         self, user_input: dict[str, Any] | None = None
@@ -296,6 +307,8 @@ class RoomSubentryFlow(ConfigSubentryFlow):
         thermostats = set(user_input.get(CONF_THERMOSTATS, []))
         if not thermostats:
             return {CONF_THERMOSTATS: "no_thermostats"}
+        if thermostats & set(self._room_thermostats()):
+            return {CONF_THERMOSTATS: "room_thermostat"}
         own = self._get_reconfigure_subentry().subentry_id if step_id == "reconfigure" else None
         for subentry in self._get_entry().subentries.values():
             if subentry.subentry_id == own:
@@ -318,7 +331,7 @@ class RoomSubentryFlow(ConfigSubentryFlow):
         return state.name if state else entity_id
 
 
-def _room_schema(current: Mapping[str, Any]) -> vol.Schema:
+def _room_schema(current: Mapping[str, Any], exclude: list[str]) -> vol.Schema:
     window = current.get(SECTION_WINDOW, {})
 
     def suggested(key: str) -> dict[str, Any]:
@@ -328,7 +341,9 @@ def _room_schema(current: Mapping[str, Any]) -> vol.Schema:
         {
             vol.Optional(CONF_NAME, description=suggested(CONF_NAME)): TextSelector(),
             vol.Required(CONF_THERMOSTATS, description=suggested(CONF_THERMOSTATS)): (
-                EntitySelector(EntitySelectorConfig(domain="climate", multiple=True))
+                EntitySelector(
+                    EntitySelectorConfig(domain="climate", multiple=True, exclude_entities=exclude)
+                )
             ),
             vol.Required(CONF_SCHEDULE, description=suggested(CONF_SCHEDULE)): EntitySelector(
                 EntitySelectorConfig(domain="schedule")

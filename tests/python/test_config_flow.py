@@ -7,8 +7,9 @@ from typing import Any
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tado_x_matter_pro.const import DOMAIN, SUBENTRY_ROOM, TITLE
@@ -232,3 +233,19 @@ async def test_reconfigure_keeps_and_removes_demand_entities(
     # without a demand entity the thermostat's status sensor goes, also from the registry
     assert hass.states.get("sensor.kitchen_heating_kitchen_trv_heating") is None
     assert er.async_get(hass).async_get("sensor.kitchen_heating_kitchen_trv_heating") is None
+
+
+async def test_a_room_thermostat_of_the_integration_is_no_rooms_thermostat(
+    hass: HomeAssistant, setup_house: Callable[..., Awaitable[MockConfigEntry]]
+) -> None:
+    entry = await setup_house()
+    with pytest.raises(InvalidData):  # the picker does not offer it, and refuses it if sent
+        await _add_room(
+            hass,
+            entry,
+            {
+                "thermostats": ["climate.kitchen_heating"],
+                "schedule": "schedule.bathroom",
+                "window": {},
+            },
+        )

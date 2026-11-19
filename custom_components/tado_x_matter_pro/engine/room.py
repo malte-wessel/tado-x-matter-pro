@@ -24,6 +24,9 @@ from .model import (
 )
 
 BOUNCE_WINDOW = timedelta(hours=1)
+# What the thermostats accept (Tado X: 5–30 °C).
+MIN_SETPOINT = 5.0
+MAX_SETPOINT = 30.0
 FROST_HYSTERESIS = 1.0
 
 
@@ -110,7 +113,8 @@ def plan_target(inputs: Inputs) -> float:
     if inputs.idle or not inputs.schedule_on:
         return inputs.idle_temperature
     if inputs.block_temperature is not None:
-        return inputs.block_temperature
+        # a typo in a block's additional data must not reach the thermostats
+        return min(MAX_SETPOINT, max(MIN_SETPOINT, inputs.block_temperature))
     return inputs.heating_temperature
 
 
@@ -220,10 +224,12 @@ def _apply_command(state: RoomState, command: Command, inputs: Inputs) -> None:
         case StartBoost(temperature=temperature, until=until):
             state.boost = Boost(round_to_step(temperature), until)
         case SetOverride(temperature=temperature, until=until, preset=preset):
+            state.boost = None  # a new choice of temperature ends a boost
             state.override = Override(
                 round_to_step(temperature), until or Expiry.NEXT_CHANGE, preset=preset
             )
         case ExtendBlock(until=until):
+            state.boost = None
             state.override = Override(round_to_step(plan_target(inputs)), until)
         case _:  # EndPreset
             state.boost = None

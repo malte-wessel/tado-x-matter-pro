@@ -81,6 +81,7 @@ class Room:
         (replace(BLOCK, schedule_on=False), 18.0, Mode.IDLE),
         (replace(BLOCK, idle=True, block_temperature=22.5), 18.0, Mode.IDLE),
         (replace(BLOCK, heating_temperature=21.3), 21.5, Mode.SCHEDULE),
+        (replace(BLOCK, block_temperature=35.0), 30.0, Mode.SCHEDULE),  # what thermostats take
     ],
 )
 def test_plan_ladder(inputs: Inputs, expected: float, mode: Mode) -> None:
@@ -366,3 +367,13 @@ def test_no_reminder_without_a_reminder_time() -> None:
     result = step(step(state, inputs, CONFIG, at(0.5)).state, inputs, CONFIG, at(600))
     assert not result.desired.window_overdue
     assert not result.state.reminded
+
+
+def test_a_new_override_ends_a_boost() -> None:
+    room = Room()
+    room.run(StartBoost(30.0, at(30)))
+    room.run(SetOverride(18.0, preset="eco"))
+    assert (room.desired.temperature, room.desired.mode) == (18.0, Mode.MANUAL)
+    room.run(StartBoost(30.0, at(30)))
+    room.run(ExtendBlock(at(60)))
+    assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.TIMED)

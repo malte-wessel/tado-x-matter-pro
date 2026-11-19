@@ -109,7 +109,8 @@ while all thermostats are off; whether it heats is known only from
 - **Boost** (`tado_x_matter_pro.boost`, or the room thermostat's preset *boost*) heats at the boost
   temperature for the boost duration – both from the house settings unless the action gives them.
   It is a layer on top: when it ends, whatever applied underneath applies again. Schedule changes
-  don't end it; *resume*, a change by hand (dial, app, room thermostat) and the preset *none* do.
+  don't end it; *resume*, a change by hand (dial, app, room thermostat), a new override and the
+  preset *none* do.
 - **Set override** (`tado_x_matter_pro.set_override`) heats at a temperature – or at the room's
   comfort or eco temperature as it is now – **until a time** (today, or tomorrow if that time has
   passed), **for a while**, or – the default – **until the next plan change**, which is a hold like

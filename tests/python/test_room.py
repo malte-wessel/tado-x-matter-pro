@@ -486,3 +486,38 @@ async def test_changing_either_number_ends_a_hold(hass: HomeAssistant, setup_hou
     await hass.async_block_till_done()
     assert mode(hass, "kitchen") == "schedule"
     assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
+
+
+async def test_turning_the_dial_back_after_a_schedule_edge_is_a_hold(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()  # comfort 21, confirmed
+    set_inputs(hass, ground_floor="off")  # the block ends: 18, confirmed
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)
+    trvs["climate.kitchen_trv"].dial(21.0)  # someone wants the comfort back
+    await advance(hass, freezer, 4)
+    assert mode(hass, "kitchen") == "manual"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
+
+
+async def test_a_write_still_on_its_way_when_stopping_is_no_change_while_down(
+    hass: HomeAssistant, setup_house: Setup, trvs: dict[str, FakeTrv]
+) -> None:
+    entry = await setup_house()
+    kitchen = trvs["climate.kitchen_trv"]
+    kitchen.queue_writes = True
+    set_inputs(hass, ground_floor="off")  # 18 is sent, not reported yet
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    kitchen.queue_writes = False
+    kitchen.deliver()  # it arrives while Home Assistant is down
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "idle"

@@ -58,6 +58,9 @@ class RoomDict(TypedDict):
     # Last mode and setpoint each thermostat was known to have; tells changes made while
     # Home Assistant was down.
     last_known: dict[str, list[Any]]
+    # What the integration sent each thermostat last (stored before sending): a write still on its
+    # way when Home Assistant stopped is no change made while it was down.
+    last_commanded: NotRequired[dict[str, list[Any]]]
 
 
 class StoreData(TypedDict):
@@ -133,6 +136,22 @@ def state_from_dict(data: StateDict | None) -> RoomState:
     )
 
 
+def _migrate_room(room: dict[str, Any], minor: int) -> None:
+    """Bring one stored room from store 1.`minor` to the current minor version."""
+    state = room.get("state")
+    if minor < 3:  # 1.2 kept an inferred heating status; 1.3 takes it from demand entities
+        room.pop("status", None)
+    if minor < 4 and state is not None:  # 1.4: boost, and the preset that made an override
+        state.setdefault("boost", None)
+        if state.get("override") is not None:
+            state["override"].setdefault("preset", None)
+    if minor < 5 and state is not None:  # 1.5: since when a window keeps the room off, reminded
+        state.setdefault("window_open_since", None)
+        state.setdefault("reminded", False)
+    if minor < 6:  # 1.6: what was sent last per thermostat
+        room.setdefault("last_commanded", {})
+
+
 class _Storage(Store[StoreData]):
     """The HA store with the schema migrations.
 
@@ -148,23 +167,9 @@ class _Storage(Store[StoreData]):
         old_data: dict[str, Any],
     ) -> StoreData:
         rooms = old_data.get("rooms", {})
-        if old_major_version == 1 and old_minor_version < 3:
-            # 1.2 kept an inferred heating status per thermostat; 1.3 takes it from demand entities
+        if old_major_version == 1:
             for room in rooms.values():
-                room.pop("status", None)
-        if old_major_version == 1 and old_minor_version < 4:
-            # 1.4: boost, and the preset that made an override
-            for room in rooms.values():
-                if (state := room.get("state")) is not None:
-                    state.setdefault("boost", None)
-                    if state.get("override") is not None:
-                        state["override"].setdefault("preset", None)
-        if old_major_version == 1 and old_minor_version < 5:
-            # 1.5: since when a window keeps the room off, and whether its reminder went out
-            for room in rooms.values():
-                if (state := room.get("state")) is not None:
-                    state.setdefault("window_open_since", None)
-                    state.setdefault("reminded", False)
+                _migrate_room(room, old_minor_version)
         return {"rooms": rooms}
 
 

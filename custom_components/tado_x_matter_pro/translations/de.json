@@ -189,7 +189,8 @@
       "error": {
         "no_thermostats": "Wähle mindestens ein Thermostat.",
         "thermostat_in_other_room": "Ein Thermostat gehört schon zu einem anderen Raum.",
-        "demand_not_numeric": "Dieser Sensor meldet keine Zahl."
+        "demand_not_numeric": "Dieser Sensor meldet keine Zahl.",
+        "room_thermostat": "Ein Raumthermostat dieser Integration kann nicht Thermostat eines Raums sein."
       },
       "abort": {
         "reconfigure_successful": "Der Raum wurde geändert."

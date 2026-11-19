@@ -268,8 +268,7 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
 - Home Assistant silently skips unavailable entities in entity service calls (only a log line), so
   a write to an unavailable TRV is lost, not queued; the Matter server only queues writes while
   the entity still shows available. Hence: nothing is sent while unavailable, a reconnect re-sends.
-- Open from that review: store the last command next to the last report so a write in flight at
-  shutdown is not a hold; repair issue for window
+- Open from that review: repair issue for window
   contacts unavailable while open; away vs. vacation temperatures; `zone.home`/`person` as idle
   inputs; window detection from the temperature drop for rooms without contacts; an `away` mode
   separate from `idle`.

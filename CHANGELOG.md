@@ -71,7 +71,13 @@ Initial release.
   house device with *Resume all rooms* and *Rooms off schedule* (the count, with the rooms and their
   modes). They end holds and a room switched off, skip the wait after a window – an open window
   still keeps the room off – and return at once.
-- A dial turned back to the previous value right after the integration's write is now a hold.
+- A dial turned back to the previous value right after the integration's write is now a hold –
+  also back to a value the integration had written and the thermostat had confirmed before.
+- A write still on its way when Home Assistant stops is no manual change after the restart: the
+  last value sent to each thermostat is stored (store 1.6).
+- A new override or extend block ends a running boost; block temperatures are kept within the
+  thermostats' 5–30 °C; the room form does not offer the integration's own room thermostats; the
+  logbook notes windows only when they switch a room off or back on.
 - Changing a room's comfort or eco temperature ends its manual hold – either number, also the one
   the plan does not use at the moment.
 - The store is written only when something changed, not after every thermostat reading; the

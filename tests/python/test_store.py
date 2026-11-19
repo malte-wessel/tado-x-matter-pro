@@ -57,3 +57,14 @@ async def test_a_1_4_store_gets_no_reminder_state(
     assert state["window_open_since"] is None
     assert state["reminded"] is False
     assert state_from_dict(state).window.value == "open"
+
+
+async def test_a_1_5_store_gets_an_empty_last_command(
+    hass: HomeAssistant, hass_storage: dict[str, Any]
+) -> None:
+    hass_storage[DOMAIN] = json.loads((FIXTURES / "v1_5.json").read_text())
+    store = HeatingStore(hass)
+    await store.async_load({"room_a"})
+    room = store.room("room_a")
+    assert room.get("last_commanded") == {}
+    assert room["last_known"] == {"climate.room_a_trv": ["heat", 21.5]}

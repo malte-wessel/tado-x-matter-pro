@@ -61,3 +61,12 @@ def test_the_window_reminder() -> None:
     reminded = RoomState(window=WindowPhase.OPEN, reminded=True)
     assert log(open_, reminded) == [Entry(Kind.WINDOW_REMINDER)]
     assert log(reminded, reminded) == []
+
+
+def test_no_window_entries_for_a_room_that_is_off_or_heats_anyway() -> None:
+    off = Override(None, Expiry.NEVER)
+    assert log(RoomState(override=off), RoomState(window=WindowPhase.OPEN, override=off)) == []
+    waiting_off = RoomState(window=WindowPhase.WAITING, override=off)
+    assert log(waiting_off, RoomState(override=off)) == []
+    acked = Override(23.0, window_ack=True)
+    assert log(RoomState(window=WindowPhase.OPEN, override=acked), RoomState(override=acked)) == []

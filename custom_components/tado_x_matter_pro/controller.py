@@ -68,7 +68,7 @@ from .const import (
     SECTION_REMINDER,
     SECTION_WINDOW,
 )
-from .engine.external import Report, TrvView, classify
+from .engine.external import Report, TrvView, classify, matches
 from .engine.forecast import HORIZON, Block, Forecast, forecast
 from .engine.heating import Status, room_action, status as heating_status
 from .engine.log import Kind, entries as log_entries
@@ -250,7 +250,15 @@ class RoomController:
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
         self.counters: Counter[str] = Counter()
         self.writers = {
-            eid: TrvWriter(hass, entry, eid, self.name, trace=self._trace, counters=self.counters)
+            eid: TrvWriter(
+                hass,
+                entry,
+                eid,
+                self.name,
+                trace=self._trace,
+                counters=self.counters,
+                on_send=self._remember_command,
+            )
             for eid in self.thermostats
         }
 
@@ -653,11 +661,25 @@ class RoomController:
             self._stored["last_known"][entity_id] = known
             self._store.save()
 
+    def _remember_command(self, entity_id: str, want: tuple[str, float | None]) -> None:
+        commanded = self._stored.setdefault("last_commanded", {})
+        if commanded.get(entity_id) != list(want):
+            commanded[entity_id] = list(want)
+            self._store.save()
+
     def _changed_while_down(self) -> ExternalChange | None:
-        """Return a change made while HA was down: a thermostat differs from what we knew."""
+        """Return a change made while HA was down: a thermostat differs from what we knew.
+
+        What the integration sent last counts as known too: a write still on its way when Home
+        Assistant stopped arrives while it is down.
+        """
+        commanded = self._stored.get("last_commanded", {})
         for entity_id, view in self._views.items():
             known = self._stored["last_known"].get(entity_id)
             if not known or not view.available:
+                continue
+            sent = commanded.get(entity_id)
+            if sent and matches(view, (sent[0], sent[1])):
                 continue
             mode, setpoint = known
             setpoint_differs = (
