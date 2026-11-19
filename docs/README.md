@@ -18,7 +18,7 @@ respects changes made at the thermostat, and tells you whether each radiator is 
 | [Configuration](configuration.md) | House settings, adding and changing rooms, every field and its default. |
 | [How it works](how-it-works.md) | What decides a room's temperature, windows, manual changes, away mode, frost protection, restarts. |
 | [Entities](entities.md) | Every entity a room creates, its states and attributes, and how the entity ids are formed. |
-| [Heating status](heating-status.md) | How the integration tells "heating" from "reached" without valve data, and its limits. |
+| [Heating status](heating-status.md) | Which radiator heats: heating demand entities per thermostat, the threshold, the room's action. |
 | [Dashboards](dashboards.md) | Card examples with Home Assistant's built-in cards. |
 | [Automations](automations.md) | Examples: away mode, guests, holds, heating hours. |
 | [Migrating from a DIY setup](migrating.md) | Replacing a blueprint/automation/helper setup room by room. |
@@ -35,6 +35,6 @@ respects changes made at the thermostat, and tells you whether each radiator is 
 | Manual changes | Held until the next schedule change; rooms with several thermostats follow | – |
 | Room thermostat | Auto (plan), heat (hold a temperature), off | Presets boost / comfort / eco |
 | Overrides | Hold until the next change, room off until switched back | Boost, heat or eco until a time, extend the current block, back to schedule (skipping the wait after a window) |
-| Heating status | Per thermostat heating / reached / off, room thermostat action | – |
+| Heating status | Per thermostat heating / reached / off from an optional heating demand entity, room thermostat action | – |
 | Safety | Frost protection | Repair issues (thermostat unavailable, chattering contacts, tado° overwriting setpoints) |
 | Explanations | Mode sensor with reason, next change and "back on at"; diagnostics with a trace | Logbook entries |

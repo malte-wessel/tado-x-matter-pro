@@ -14,7 +14,10 @@
   for vacation).
 
 Other thermostats that look the same to Home Assistant (a `climate` entity with *off* and *heat*)
-can be used too, but the [heating status](heating-status.md) is tuned for Tado X.
+can be used too.
+
+Optional: a [heating demand](heating-status.md) entity per thermostat, if you want to see which
+radiator heats – Tado X does not report it over Matter.
 
 ## Prepare the tado° app
 

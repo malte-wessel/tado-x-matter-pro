@@ -8,10 +8,11 @@ from typing import Any
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tado_x_matter_pro.const import DOMAIN, SUBENTRY_ROOM, TITLE
-from tests.python.conftest import HOUSE_OPTIONS, KITCHEN, FakeTrv
+from tests.python.conftest import HOUSE_OPTIONS, KITCHEN, KITCHEN_DEMAND, FakeTrv, house_entry
 
 SECTIONS: dict[str, Any] = {"boost": {}, "window_reminder": {}}
 
@@ -27,6 +28,7 @@ async def test_user_flow_creates_the_house_with_defaults(hass: HomeAssistant) ->
     assert result["data"] == {}
     options = result["options"]
     assert options["frost_temperature"] == 7.0
+    assert options["demand_threshold"] == 3.0
     assert options["boost"] == {"temperature": 30.0, "duration": {"minutes": 30}}
 
 
@@ -49,12 +51,21 @@ async def test_options_flow_changes_house_settings(hass: HomeAssistant) -> None:
     assert entry.options["frost_temperature"] == 8.0
 
 
-async def _add_room(hass: HomeAssistant, entry: MockConfigEntry, data: dict[str, Any]) -> Any:
+async def _add_room(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    data: dict[str, Any],
+    demand: dict[str, str] | None = None,
+) -> Any:
+    """Fill in the room, then the demand step (empty unless given)."""
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_ROOM), context={"source": SOURCE_USER}
     )
     assert result["type"] is FlowResultType.FORM
-    return await hass.config_entries.subentries.async_configure(result["flow_id"], data)
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], data)
+    if result["type"] is not FlowResultType.FORM or result["step_id"] != "demand":
+        return result
+    return await hass.config_entries.subentries.async_configure(result["flow_id"], demand or {})
 
 
 async def test_add_room(
@@ -136,9 +147,86 @@ async def test_reconfigure_room(
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {**KITCHEN, "name": "Kitchen", "windows": []}
     )
+    assert result["step_id"] == "demand"
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], {})
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     await hass.async_block_till_done()
     assert entry.subentries[subentry_id].data["windows"] == []
     assert hass.states.get("binary_sensor.kitchen_heating_window_open") is None
     assert hass.states.get("sensor.kitchen_heating_back_on") is None
+
+
+async def test_a_room_takes_a_demand_entity_per_thermostat(
+    hass: HomeAssistant, trvs: dict[str, FakeTrv]
+) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, title=TITLE, options=HOUSE_OPTIONS)
+    entry.add_to_hass(hass)
+    hass.states.async_set("sensor.bath_demand", "12", {"unit_of_measurement": "%"})
+    hass.states.async_set("binary_sensor.tub_pipe_hot", "off")
+    result = await _add_room(
+        hass,
+        entry,
+        {
+            "name": "Bathroom",
+            "thermostats": ["climate.bath_trv", "climate.bath_tub_trv"],
+            "schedule": "schedule.bathroom",
+            "window": {},
+        },
+        {
+            "climate.bath_trv": "sensor.bath_demand",
+            "climate.bath_tub_trv": "binary_sensor.tub_pipe_hot",
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["demand"] == {
+        "climate.bath_trv": "sensor.bath_demand",
+        "climate.bath_tub_trv": "binary_sensor.tub_pipe_hot",
+    }
+
+
+async def test_a_demand_sensor_must_report_a_number(
+    hass: HomeAssistant, trvs: dict[str, FakeTrv]
+) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, title=TITLE, options=HOUSE_OPTIONS)
+    entry.add_to_hass(hass)
+    hass.states.async_set("sensor.kitchen_mood", "cosy")
+    result = await _add_room(
+        hass,
+        entry,
+        {"thermostats": ["climate.kitchen_trv"], "schedule": "schedule.ground_floor", "window": {}},
+        {"climate.kitchen_trv": "sensor.kitchen_mood"},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "demand"
+    assert result["errors"] == {"climate.kitchen_trv": "demand_not_numeric"}
+
+
+async def test_reconfigure_keeps_and_removes_demand_entities(
+    hass: HomeAssistant, setup_house: Callable[..., Awaitable[MockConfigEntry]]
+) -> None:
+    hass.states.async_set("sensor.kitchen_demand", "0", {"unit_of_measurement": "%"})
+    entry = await setup_house(house_entry({"Kitchen": {**KITCHEN, "demand": KITCHEN_DEMAND}}))
+    subentry_id = next(iter(entry.subentries))
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_ROOM),
+        context={"source": SOURCE_RECONFIGURE, "subentry_id": subentry_id},
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**KITCHEN, "name": "Kitchen"}
+    )
+    assert result["step_id"] == "demand"
+    assert result["data_schema"] is not None
+    schema = result["data_schema"].schema
+    key = next(k for k in schema if k == "climate.kitchen_trv")
+    assert key.description == {"suggested_value": "sensor.kitchen_demand"}
+
+    assert hass.states.get("sensor.kitchen_heating_kitchen_trv_heating") is not None
+
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], {})
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert entry.subentries[subentry_id].data["demand"] == {}
+    # without a demand entity the thermostat's status sensor goes, also from the registry
+    assert hass.states.get("sensor.kitchen_heating_kitchen_trv_heating") is None
+    assert er.async_get(hass).async_get("sensor.kitchen_heating_kitchen_trv_heating") is None

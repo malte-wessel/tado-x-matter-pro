@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import HeatingConfigEntry
 from .const import DOMAIN
 from .controller import RoomController
-from .engine.inference import Status
+from .engine.heating import Status
 from .engine.model import Mode
 from .entity import RoomEntity
 
@@ -23,7 +23,7 @@ async def async_setup_entry(
     entry: HeatingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Per room the mode and – with windows – when heating resumes; a status per thermostat."""
+    """Per room the mode, when heating resumes, and a status per thermostat with a demand."""
     registry = er.async_get(hass)
     for room_id, room in entry.runtime_data.rooms.items():
         entities: list[SensorEntity] = [ModeSensor(room)]
@@ -33,15 +33,17 @@ async def async_setup_entry(
             registry.async_remove(entity_id)  # the room lost its windows
         for thermostat in room.thermostats:
             registry_entry = registry.async_get(thermostat)
+            # the registry id survives renaming the thermostat's entity id
+            key = registry_entry.id if registry_entry else thermostat
+            if thermostat not in room.demand:
+                if entity_id := registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{room_id}_status_{key}"
+                ):
+                    registry.async_remove(entity_id)  # the thermostat lost its demand entity
+                continue
             state = hass.states.get(thermostat)
             entities.append(
-                ThermostatStatus(
-                    room,
-                    thermostat,
-                    # the registry id survives renaming the thermostat's entity id
-                    registry_entry.id if registry_entry else thermostat,
-                    state.name if state else thermostat,
-                )
+                ThermostatStatus(room, thermostat, key, state.name if state else thermostat)
             )
         async_add_entities(entities, config_subentry_id=room_id)
 
@@ -112,12 +114,12 @@ class BackOn(RoomEntity, SensorEntity):
 
 
 class ThermostatStatus(RoomEntity, SensorEntity):
-    """Whether one thermostat is heating, has reached its setpoint, or is off (inferred)."""
+    """Whether one thermostat is heating, has reached its setpoint, or is off (from its demand)."""
 
     _attr_translation_key = "thermostat_status"
     _attr_device_class = SensorDeviceClass.ENUM
-    # They change with every reading; recording them would add a row each time.
-    _unrecorded_attributes = frozenset({"temperature", "trend"})
+    # The demand entity records its own history; a copy here would add a row with every change.
+    _unrecorded_attributes = frozenset({"demand"})
 
     def __init__(self, room: RoomController, thermostat: str, key: str, name: str) -> None:
         """Create the status sensor of `thermostat`, named after it."""
@@ -127,16 +129,15 @@ class ThermostatStatus(RoomEntity, SensorEntity):
         self._attr_translation_placeholders = {"thermostat": name}
 
     @property
-    def native_value(self) -> str:
-        """Heating, reached or off."""
-        return str(self.room.monitor.status(self.thermostat))
+    def native_value(self) -> str | None:
+        """Heating, reached or off; unknown while the thermostat or its demand is unavailable."""
+        status = self.room.status(self.thermostat)
+        return str(status) if status is not None else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """The thermostat, its reading and the reading's trend (°C/h)."""
-        monitor = self.room.monitor
+        """The thermostat and its demand (a number, on/off, or None)."""
         return {
             "thermostat": self.thermostat,
-            "temperature": monitor.reading(self.thermostat),
-            "trend": monitor.trend(self.thermostat),
+            "demand": self.room.demand_value(self.thermostat),
         }

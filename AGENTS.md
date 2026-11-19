@@ -9,10 +9,10 @@ the decisions and the phases.
 | Path | What it is |
 | --- | --- |
 | `custom_components/tado_x_matter_pro/` | The integration. `manifest.json` carries the version. |
-| `custom_components/tado_x_matter_pro/engine/` | **The heating logic as pure Python**: plan ladder, window state machine, overrides, external-change classification, trend and inference. No `homeassistant` imports. |
+| `custom_components/tado_x_matter_pro/engine/` | **The heating logic as pure Python**: plan ladder, window state machine, overrides, external-change classification, heating status from demand. No `homeassistant` imports. |
 | `custom_components/tado_x_matter_pro/strings.json` | Backend strings (config flow, entities, services); `translations/{en,de}.json` are the shipped copies. |
 | `tests/python/` | pytest with `pytest-homeassistant-custom-component`: a real HA core, no browser. `tests/python/engine/` tests the engine without HA. |
-| `tests/fixtures/` | Exported real history for the replay tests, storage fixtures. |
+| `tests/fixtures/` | Storage fixtures (synthetic) for the store migration tests. |
 | `scripts/check.sh` | Definition of done: ruff, format check, mypy, pytest. `--fix` formats first. |
 | `test/ha/custom_components/dev_house/` | The Dev House: a fictional house with simulated Tado X-like thermostats, windows and a thermal model, mounted only into the dev HA. Services: `set_window`, `turn_dial` (a change at the device, no context), `drop_connection`, `set_air_temperature`, `set_outdoor_temperature`. |
 | `test/ha/`, `scripts/ha.sh`, `scripts/ha-setup.mjs` | A real Home Assistant (official image, `HA_VERSION` in `test/ha/.env`) with the integration mounted. The setup script (Node 22, no deps) finishes onboarding with the dev user, adds the config entry, the Dev House schedules and its dashboard. `scripts/ha.sh reset` wipes its config volume. |

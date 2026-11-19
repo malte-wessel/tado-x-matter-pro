@@ -112,8 +112,9 @@ actions:
 
 ## Heating hours per radiator
 
-The status sensors make heating time countable with the *History stats* helper (Settings → Devices
-& services → Helpers → Create helper → History stats):
+For thermostats with a [heating demand](heating-status.md) entity, the status sensors make heating
+time countable with the *History stats* helper (Settings → Devices & services → Helpers → Create
+helper → History stats):
 
 - Entity: `sensor.kitchen_heating_thermostat_kitchen_heating`
 - State: `heating`
@@ -124,6 +125,8 @@ The helper then shows how many hours that radiator heated today; a *Utility mete
 days, weeks and months.
 
 ## React when a room starts heating
+
+Needs heating demand entities for the room's thermostats.
 
 ```yaml
 triggers:

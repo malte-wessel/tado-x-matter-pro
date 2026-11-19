@@ -15,6 +15,8 @@ BIAS_CLOSED = 0.8
 BIAS_TAU = 0.25  # h, how fast the radiator warms up or cools down
 VALVE_OPEN_BELOW = 0.3  # the valve opens when the TRV reads this far below its setpoint …
 VALVE_CLOSE_ABOVE = 0.2  # … and closes this far above it
+DEMAND_PER_KELVIN = 40  # % of heating demand per kelvin below the setpoint, while the valve is open
+DEMAND_MIN, DEMAND_MAX = 5, 100
 
 
 @dataclass
@@ -81,6 +83,14 @@ class Simulation:
         """What the thermostat's own sensor reads (above the air, more so while heating)."""
         room = self.room_of_trv(object_id)
         return room.air + room.trvs[object_id].bias
+
+    def trv_demand(self, object_id: str) -> int:
+        """The heating demand in %, as a cloud reports it; 0 while the valve is shut."""
+        trv = self.room_of_trv(object_id).trvs[object_id]
+        if not trv.valve_open:
+            return 0
+        below = trv.setpoint - self.trv_reading(object_id)
+        return round(min(DEMAND_MAX, max(DEMAND_MIN, DEMAND_PER_KELVIN * below)))
 
     def step(self, hours: float) -> None:
         """Advance the model by `hours`."""

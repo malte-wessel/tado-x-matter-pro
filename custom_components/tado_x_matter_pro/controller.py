@@ -37,6 +37,8 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_CLOSE_DELAY,
+    CONF_DEMAND,
+    CONF_DEMAND_THRESHOLD,
     CONF_FROST_TEMPERATURE,
     CONF_IDLE_SENSORS,
     CONF_OPEN_DELAY,
@@ -45,14 +47,15 @@ from .const import (
     CONF_THERMOSTATS,
     CONF_WINDOWS,
     DEFAULT_CLOSE_DELAY_MINUTES,
+    DEFAULT_DEMAND_THRESHOLD,
     DEFAULT_FROST_TEMPERATURE,
     DEFAULT_OPEN_DELAY_SECONDS,
     SECTION_WINDOW,
 )
 from .engine.external import SETTLE, Command, Report, TrvView, classify
+from .engine.heating import Status, room_action, status as heating_status
 from .engine.model import Desired, Inputs, RoomConfig, RoomState
 from .engine.room import Event as RoomEvent, ExternalChange, Resume, SetMode, SetTemperature, step
-from .monitor import HeatingMonitor
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,6 +98,15 @@ class RoomController:
         self.schedule: str = data[CONF_SCHEDULE]
         self.windows: list[str] = list(data.get(CONF_WINDOWS, []))
         self.room_sensor: str | None = data.get(CONF_ROOM_SENSOR)
+        # Per thermostat an optional entity that says how much it heats (% or on/off).
+        self.demand: dict[str, str] = {
+            trv: entity
+            for trv, entity in data.get(CONF_DEMAND, {}).items()
+            if trv in self.thermostats
+        }
+        self.demand_threshold = float(
+            entry.options.get(CONF_DEMAND_THRESHOLD, DEFAULT_DEMAND_THRESHOLD)
+        )
         window = data.get(SECTION_WINDOW, {})
         self.config = RoomConfig(
             open_delay=_duration(
@@ -124,9 +136,6 @@ class RoomController:
         self._known: dict[str, State] = {}
         self._reconcile_task: asyncio.Task[None] | None = None
         self._reconcile_again = False
-        self.monitor = HeatingMonitor(
-            hass, self.thermostats, self._stored.setdefault("status", {}), self._statuses_changed
-        )
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
         self.counters: Counter[str] = Counter()
 
@@ -162,6 +171,29 @@ class RoomController:
         value = state.attributes.get("next_event") if state else None
         return value if isinstance(value, datetime) else None
 
+    def demand_value(self, thermostat: str) -> float | bool | None:
+        """Return the thermostat's demand: a number, on/off, or None when unknown."""
+        entity_id = self.demand.get(thermostat)
+        state = self.hass.states.get(entity_id) if entity_id else None
+        if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return None
+        if state.domain == "binary_sensor":
+            return state.state == STATE_ON
+        return _float(state.state)
+
+    def status(self, thermostat: str) -> Status | None:
+        """Return whether the thermostat heats; None when that is not known."""
+        view = self._view(thermostat)
+        mode = view.hvac_mode if view.available else None
+        return heating_status(
+            mode, demand=self.demand_value(thermostat), threshold=self.demand_threshold
+        )
+
+    @property
+    def action(self) -> Status | None:
+        """The room's status: off, heating if any thermostat heats, reached if all are known."""
+        return room_action([self.status(eid) for eid in self.thermostats])
+
     @callback
     def add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
         """Call `listener` after every decision; returns the unsubscribe function."""
@@ -195,7 +227,6 @@ class RoomController:
 
     def diagnostics(self) -> dict[str, Any]:
         """Everything that explains the room's behaviour, for a bug report."""
-        monitor = self.monitor
         return {
             "name": self.name,
             "thermostats": self.thermostats,
@@ -219,13 +250,13 @@ class RoomController:
             "pending_external": asdict(self._pending_external) if self._pending_external else None,
             "heating": {
                 eid: {
-                    "sensor": monitor.sensors.get(eid),
-                    "status": monitor.status(eid),
-                    "reading": monitor.reading(eid),
-                    "trend": monitor.trend(eid),
+                    "demand_entity": self.demand.get(eid),
+                    "demand": self.demand_value(eid),
+                    "status": self.status(eid),
                 }
                 for eid in self.thermostats
             },
+            "demand_threshold": self.demand_threshold,
             "counters": dict(self.counters),
             "trace": list(self.trace),
         }
@@ -238,7 +269,6 @@ class RoomController:
     async def async_start(self) -> None:
         """Snapshot the thermostats, follow every input, decide."""
         self._views = {eid: self._view(eid) for eid in self.thermostats}
-        await self.monitor.async_start()
         inputs = [self.schedule, *self.idle_sensors, *self.windows]
         if self.room_sensor:
             inputs.append(self.room_sensor)
@@ -246,6 +276,13 @@ class RoomController:
         self._unsubs.append(
             async_track_state_change_event(self.hass, self.thermostats, self._on_thermostat)
         )
+        if self.demand:
+            # A demand changes only the heating status, not what the room should do.
+            self._unsubs.append(
+                async_track_state_change_event(
+                    self.hass, list(self.demand.values()), self._on_demand
+                )
+            )
         self._run(self._changed_while_down())
 
     @callback
@@ -256,7 +293,6 @@ class RoomController:
                 unsub()
         self._unsubs.clear()
         self._wakeup = self._external_timer = None
-        self.monitor.async_stop()
         if self._reconcile_task is not None:
             self._reconcile_task.cancel()
 
@@ -324,8 +360,11 @@ class RoomController:
         self._run()
 
     @callback
+    def _on_demand(self, _event: Event[EventStateChangedData]) -> None:
+        self._notify()
+
+    @callback
     def _on_thermostat(self, event: Event[EventStateChangedData]) -> None:
-        self.monitor.thermostat_changed(event)
         entity_id = event.data["entity_id"]
         new_state = event.data["new_state"]
         old = self._views.get(entity_id)
@@ -363,6 +402,7 @@ class RoomController:
             self._external_timer = async_call_later(
                 self.hass, EXTERNAL_COALESCE, self._fire_external
             )
+            self._notify()  # the thermostat's heating status may have changed
             return
         # Readings changed, or a thermostat came back: decide again (writes only on deviation).
         self._run()
@@ -375,9 +415,7 @@ class RoomController:
             self._run(change)
 
     @callback
-    def _statuses_changed(self, status_changed: bool) -> None:  # noqa: FBT001
-        if status_changed:
-            self._store.save()
+    def _notify(self) -> None:
         for listener in list(self._listeners):
             listener()
 
@@ -426,8 +464,7 @@ class RoomController:
             self._stored["state"] = stored
             self._store.save()
         self._schedule_wakeup(result.next_wakeup)
-        for listener in list(self._listeners):
-            listener()
+        self._notify()
         self._schedule_reconcile()
 
     def _schedule_wakeup(self, when: datetime | None) -> None:

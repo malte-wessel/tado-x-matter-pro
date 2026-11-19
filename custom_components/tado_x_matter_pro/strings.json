@@ -6,11 +6,13 @@
         "description": "Settings for the whole house. Add the rooms afterwards with \"Add room\" on the integration page.",
         "data": {
           "idle_sensors": "Away sensors",
-          "frost_temperature": "Frost protection"
+          "frost_temperature": "Frost protection",
+          "demand_threshold": "Heating demand threshold"
         },
         "data_description": {
           "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
-          "frost_temperature": "No room drops below this, even when it is switched off or a window is open."
+          "frost_temperature": "No room drops below this, even when it is switched off or a window is open.",
+          "demand_threshold": "From this heating demand (%) on, a thermostat counts as heating. Only for thermostats with a demand entity."
         },
         "sections": {
           "boost": {
@@ -46,11 +48,13 @@
         "title": "House settings",
         "data": {
           "idle_sensors": "Away sensors",
-          "frost_temperature": "Frost protection"
+          "frost_temperature": "Frost protection",
+          "demand_threshold": "Heating demand threshold"
         },
         "data_description": {
           "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
-          "frost_temperature": "No room drops below this, even when it is switched off or a window is open."
+          "frost_temperature": "No room drops below this, even when it is switched off or a window is open.",
+          "demand_threshold": "From this heating demand (%) on, a thermostat counts as heating. Only for thermostats with a demand entity."
         },
         "sections": {
           "boost": {
@@ -148,11 +152,16 @@
               }
             }
           }
+        },
+        "demand": {
+          "title": "Heating demand",
+          "description": "Optional: per thermostat an entity that says how much it heats – a percentage (e.g. the heating power of a cloud integration) or an on/off value (e.g. a threshold helper on a pipe sensor). Tado X reports neither its valve nor its demand over Matter, so thermostats without one show no heating status.\n\n{thermostats}"
         }
       },
       "error": {
         "no_thermostats": "Pick at least one thermostat.",
-        "thermostat_in_other_room": "A thermostat already belongs to another room."
+        "thermostat_in_other_room": "A thermostat already belongs to another room.",
+        "demand_not_numeric": "This sensor does not report a number."
       }
     }
   },
@@ -217,11 +226,8 @@
           "thermostat": {
             "name": "Thermostat"
           },
-          "temperature": {
-            "name": "Temperature"
-          },
-          "trend": {
-            "name": "Trend"
+          "demand": {
+            "name": "Heating demand"
           }
         }
       },

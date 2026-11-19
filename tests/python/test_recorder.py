@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.components.recorder.common import (
     async_wait_recording_done,
 )
 
-from tests.python.conftest import FakeTrv
+from tests.python.conftest import KITCHEN, KITCHEN_DEMAND, FakeTrv, house_entry
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
 STATUS = "sensor.kitchen_heating_kitchen_trv_heating"
@@ -30,7 +30,7 @@ def _enable_custom_integrations(
     """Load custom_components/ with a recorder running."""
 
 
-async def test_reading_and_trend_are_not_recorded(
+async def test_the_demand_is_not_recorded_twice(
     hass: HomeAssistant,
     recorder_mock: Recorder,
     setup_house: Setup,
@@ -38,20 +38,21 @@ async def test_reading_and_trend_are_not_recorded(
     trvs: dict[str, FakeTrv],
 ) -> None:
     start = dt_util.utcnow() - timedelta(seconds=1)
-    await setup_house()
-    trvs["climate.kitchen_trv"].read(19.5)
+    hass.states.async_set("sensor.kitchen_demand", "40", {"unit_of_measurement": "%"})
+    await setup_house(house_entry({"Kitchen": {**KITCHEN, "demand": KITCHEN_DEMAND}}))
+    hass.states.async_set("sensor.kitchen_demand", "0", {"unit_of_measurement": "%"})
     freezer.tick(timedelta(minutes=1))
     async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
     state = hass.states.get(STATUS)
     assert state is not None
-    assert "trend" in state.attributes  # still on the live state, for cards
+    assert state.attributes["demand"] == 0.0  # on the live state, for cards
 
     await async_wait_recording_done(hass)
     recorded = await recorder_mock.async_add_executor_job(
         history.state_changes_during_period, hass, start, dt_util.utcnow(), STATUS
     )
-    assert recorded[STATUS]
+    states = [row.state for row in recorded[STATUS] if row.state != "unavailable"]  # before start
+    assert states == ["heating", "reached"]
     for row in recorded[STATUS]:
-        assert "trend" not in row.attributes
-        assert "temperature" not in row.attributes
+        assert "demand" not in row.attributes

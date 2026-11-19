@@ -1,1 +1,1 @@
-"""Heating engine: plan, windows, overrides and inference; pure Python, no HA imports."""
+"""Heating engine: plan, windows, overrides and the heating status; pure Python, no HA imports."""

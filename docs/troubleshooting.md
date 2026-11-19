@@ -52,12 +52,13 @@ The debug log and the trace in the diagnostics show which thermostat changed and
 Raise *Switch off after* in the room settings. A front door that stands open while shopping is
 carried in may need a minute or more.
 
-## The heating status flips or seems wrong
+## The heating status is missing, unknown or late
 
-See [Heating status → Limits](heating-status.md#limits). Check the status sensor's `trend` and
-`temperature` attributes: if the thermostat has no precise temperature sensor on its device, the
-trend comes from the 0.1 °C climate reading and is coarse. Make sure the Tado X temperature sensor
-entity is enabled.
+- **Missing:** only thermostats with a [heating demand](heating-status.md) entity have one. Add it
+  in the room's second step (**Reconfigure**).
+- **Unknown:** the demand entity or the thermostat is unavailable – check the demand entity first.
+- **Late:** a cloud demand is only as fresh as its integration's polling. The status sensor's
+  `demand` attribute shows the value it used.
 
 ## The entity ids look odd
 

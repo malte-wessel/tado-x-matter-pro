@@ -6,11 +6,13 @@
         "description": "Einstellungen für das ganze Haus. Räume fügst du danach auf der Integrationsseite mit „Raum hinzufügen“ hinzu.",
         "data": {
           "idle_sensors": "Abwesenheits-Sensoren",
-          "frost_temperature": "Frostschutz"
+          "frost_temperature": "Frostschutz",
+          "demand_threshold": "Heizbedarf-Schwelle"
         },
         "data_description": {
           "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
-          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist."
+          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist.",
+          "demand_threshold": "Ab diesem Heizbedarf (%) gilt ein Thermostat als heizend. Nur für Thermostate mit Heizbedarf-Entität."
         },
         "sections": {
           "boost": {
@@ -46,11 +48,13 @@
         "title": "Haus-Einstellungen",
         "data": {
           "idle_sensors": "Abwesenheits-Sensoren",
-          "frost_temperature": "Frostschutz"
+          "frost_temperature": "Frostschutz",
+          "demand_threshold": "Heizbedarf-Schwelle"
         },
         "data_description": {
           "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
-          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist."
+          "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist.",
+          "demand_threshold": "Ab diesem Heizbedarf (%) gilt ein Thermostat als heizend. Nur für Thermostate mit Heizbedarf-Entität."
         },
         "sections": {
           "boost": {
@@ -148,11 +152,16 @@
               }
             }
           }
+        },
+        "demand": {
+          "title": "Heizbedarf",
+          "description": "Optional: pro Thermostat eine Entität, die sagt, wie stark es heizt – ein Prozentwert (z. B. die Heizleistung einer Cloud-Integration) oder ein An/Aus-Wert (z. B. ein Schwellenwert-Helfer auf einem Rohrsensor). Tado X meldet über Matter weder Ventil noch Heizbedarf; Thermostate ohne diese Entität zeigen keinen Heizstatus.\n\n{thermostats}"
         }
       },
       "error": {
         "no_thermostats": "Wähle mindestens ein Thermostat.",
-        "thermostat_in_other_room": "Ein Thermostat gehört schon zu einem anderen Raum."
+        "thermostat_in_other_room": "Ein Thermostat gehört schon zu einem anderen Raum.",
+        "demand_not_numeric": "Dieser Sensor meldet keine Zahl."
       }
     }
   },
@@ -217,11 +226,8 @@
           "thermostat": {
             "name": "Thermostat"
           },
-          "temperature": {
-            "name": "Temperatur"
-          },
-          "trend": {
-            "name": "Trend"
+          "demand": {
+            "name": "Heizbedarf"
           }
         }
       },

@@ -80,7 +80,7 @@ class DevHouseThermostat(DevHouseEntity, ClimateEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """The simulation's truth, to check the inferred status against."""
+        """The simulation's truth behind the thermostat's heating demand sensor."""
         return {"valve_open": self._trv.valve_open}
 
     @property

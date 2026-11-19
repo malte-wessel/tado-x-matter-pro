@@ -227,7 +227,7 @@ const thermostatTile = (id) => ({
   grid_options: { columns: 12 },
   features: [{ type: "target-temperature" }, { type: "climate-hvac-modes", hvac_modes: ["off", "heat"] }],
   features_position: "bottom",
-  // valve_open is the simulation's truth, to compare with the integration's inferred status
+  // valve_open is the simulation's truth behind each thermostat's "Heating demand" sensor
   state_content: ["hvac_mode", "current_temperature", "valve_open"],
 });
 const contactTile = (id) => ({

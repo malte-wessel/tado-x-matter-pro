@@ -2,9 +2,10 @@
 
 A Home Assistant custom integration (HACS, category _integration_) that controls Tado X radiator
 thermostats connected over Matter, room by room: schedules, windows, away modes, manual holds, boost
-and timed overrides, plus a local "is it heating" inference. It replaces the usual do-it-yourself
-setup of a blueprint, one automation per room, per-room helpers (temperatures, timers, trend and
-status sensors) and template macros with one integration and the schedule helpers.
+and timed overrides, plus a heating status per thermostat from an optional demand entity. It
+replaces the usual do-it-yourself setup of a blueprint, one automation per room, per-room helpers
+(temperatures, timers, trend and status sensors) and template macros with one integration and the
+schedule helpers.
 Quality bar and tooling come from `pro-budget`.
 
 ## Decisions
@@ -21,7 +22,7 @@ Quality bar and tooling come from `pro-budget`.
 | Dial turned while a window is open | Respected: the room heats as a manual hold until the next plan change; a new opening switches off again. |
 | Windows | Per room: open delay (debounce, 30 s), close delay (5 min), reminder after N min (30, 0 = off). House-wide: outdoor condition (optional sensor, "only below N °C") and notify targets. |
 | Room temperature | Optional room sensor per room; fallback is the mean of the TRVs' own temperature sensors. |
-| Heating inference | Rule on setpoint − TRV temperature and the TRV temperature trend, with hysteresis, per TRV: one status sensor per thermostat, and the room climate's native `hvac_action` = the most active of its TRVs. Trend from each TRV's own temperature sensor (0.01 °C; the climate attribute is only 0.1 °C), found through the device registry. |
+| Heating status | From an optional **heating demand entity** per TRV (subentry, second step): a `sensor` in % (heating from the house's threshold, default 3 %) or a `binary_sensor` (on = heating), e.g. a cloud integration's heating power or a pipe-temperature threshold helper. TRV off → `off`; demand unavailable → unknown. A status sensor only for TRVs with one; the room climate's `hvac_action`: off if all off, heating if any heats, idle if all known, else none. No inference from temperatures (decided 2026-11-19, see Findings), no staleness rule, no cloud calls. |
 | Storage | `homeassistant.helpers.storage.Store`, key `tado_x_matter_pro`, versioned with migrations. Holds numbers, overrides, window phases, deadlines and TRV bookkeeping. No RestoreEntity. |
 | Install | HACS integration, public repo. |
 | Language | English names, keys and states everywhere; translations `strings.json` + `translations/{en,de}.json`. Logbook and notification texts (which HA cannot translate) come from `messages.py` by `hass.config.language`. |
@@ -75,11 +76,9 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `engine/window.py` | Debounce state machine. |
 | `engine/room.py` | Reducer `step(state, inputs, event, now) -> (state, effects, next_wakeup)`. |
 | `engine/external.py` | Classifies TRV reports: ours, intermediate, converged, external. |
-| `engine/trend.py` | Exact port of HA's derivative sensor (10 min window, 5 min max sub-interval, °C/h). |
-| `engine/inference.py` | heating / reached / off with hysteresis. |
+| `engine/heating.py` | Status from mode + demand + threshold; the room's action. |
 | `controller.py` | `RoomController`: listeners → events → `engine.step` → effects; one wakeup timer; serial event queue; trace ring buffer. |
 | `trv.py` | `TrvWriter`: reconcile desired vs. actual, expectation before the call, context ids, retry only on exception or unavailable. |
-| `history.py` | Seeds trends from the recorder (last 25 min) in the background. |
 | `store.py` | Store subclass with `_async_migrate_func` and minor version. |
 | `entity.py`, `climate.py`, `sensor.py`, `number.py`, `button.py`, `binary_sensor.py` | Entities. |
 | `services.py`, `services.yaml` | Entity services. |
@@ -94,11 +93,11 @@ Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.k
 
 | Entity | State / notes |
 | --- | --- |
-| `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from inference; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
+| `climate` | Modes `auto` (plan), `heat` (manual hold), `off` (room off, no expiry); presets none/boost/comfort/eco; `hvac_action` from the demand entities; target = effective target; current = room sensor or TRV mean; step 0.5; `turn_on` → auto. |
 | `sensor` Mode (enum) | `schedule, idle, manual, timed, boost, window, waiting, off, frost`; attributes `target, reason, plan_target, next_change, next_target, resume_at, override_until, boost_until` (absolute timestamps). |
 | `sensor` Next change | `device_class: timestamp`. (planned) |
 | `sensor` Back on (rooms with windows) | `device_class: timestamp`: end of the wait after the windows closed; empty otherwise. ✅ 2026-10-27 |
-| `sensor` <TRV> heating (one per thermostat) | Enum `heating, reached, off` from the inference for that one TRV; attribute `trend` (°C/h). Lets rooms with several radiators show which one heats. |
+| `sensor` <TRV> heating (per TRV with a demand entity) | Enum `heating, reached, off` from that TRV's demand; attribute `demand` (unrecorded). Lets rooms with several radiators show which one heats. |
 | `number` Comfort temperature, Eco temperature | Store-backed, step 0.5. Comfort applies during schedule blocks, eco outside them and while away. |
 | `binary_sensor` Window open, Window open too long | On once a window has been open for the open delay; reminder state. Only for rooms with windows. |
 | `button` Boost, Resume schedule | |
@@ -209,18 +208,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    Diagnostics ✅ pulled forward 2026-10-27: house options (notify targets redacted) and per room
    inputs, decision, stored state, thermostat views and commands, report counters and a trace of
    the last 200 reports, decisions and writes; also per room device.
-6. **Inference.** ✅ mostly done 2026-10-27: `engine/trend.py` (derivative port), `engine/inference.py`
-   (the tuned rule), `monitor.py` (each thermostat's precise temperature sensor found on its device,
-   trends seeded from the recorder, ticks like the derivative's max sub-interval), one status sensor
-   per thermostat (heating / reached / off, attributes trend and reading), the room thermostat's
-   `hvac_action`. A test compares the trend with Home Assistant's derivative helper over 300 random
-   steps (within one rounding unit). Replay ✅ 2026-10-27: four anonymized recordings (strong heating,
-   weak demand, door toggles, never heating) in `tests/fixtures/replay/`, `tests/python/replay.py`
-   mirrors monitor.py; the window went from 20 to 10 min (end of heating 11 → 5 min after the
-   reading's peak, no new blips; 5 min added blips). Open: a ground truth (pipe sensor on two
-   radiators) to measure accuracy instead of agreement.
-   Originally: Trend, inference, seeding; the per-TRV status sensors and the room's `hvac_action`. Done when an equivalence test against HA's derivative
-   sensor (|Δ| ≤ 0.01) and a replay test on anonymized recorded history agree ≥ 98 %.
+6. **Heating status.** ✅ 2026-11-19: from an optional demand entity per TRV (`engine/heating.py`,
+   the subentry's second step, the house's threshold). It replaced a trend-based inference
+   (derivative port, tuned rule, recorder seeding, replay fixtures), which was removed: see Findings.
 7. **Extras.** Frost guard, window reminder and notify, issues. Release 0.1.0-beta.1.
 8. **Real-world rollout.** One room first next to the existing setup, then all rooms, then the old
    automations and helpers go. Done after one week without regressions.
@@ -241,17 +231,15 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
   wrote the old target back to the turned thermostat – no writes while an external change is
   pending; (3) every reading rewrote the store (now only on change) and recorded the status
   sensors' trend/reading attributes (now unrecorded).
-- Tado X over Matter (firmware 1.4.289) exposes in its Thermostat cluster only LocalTemperature,
-  the setpoint, SystemMode, ControlSequenceOfOperation and the absolute limits: no PIHeatingDemand,
-  no ThermostatRunningState. There is no separate temperature cluster; the "temperature" sensor is
-  LocalTemperature at 0.01 °C. Readings are reported only on change (about once a minute while
-  changing, no reports of unchanged values).
-- The reading is not a radiator temperature: with a cold radiator it sits 0.5–1 °C below a room
-  sensor. Strong heating: +5–7 °C/h within minutes, overshoot ~0.7 °C, slow decay. A setpoint a few
-  tenths above the reading barely moves it. After a setpoint increase during cooling, hot water took
-  ~15 min to show.
-- A write reported as two states (mode, then setpoint) can make the status flip for a second
-  (seen in recorded history); worth ignoring intermediate reports in the monitor.
+- Tado X over Matter exposes in its Thermostat cluster only LocalTemperature, the setpoint,
+  SystemMode, ControlSequenceOfOperation and the absolute limits: no PIHeatingDemand, no
+  ThermostatRunningState, no vendor clusters, no Matter OTA. Its "temperature" sensor is
+  LocalTemperature at 0.01 °C, reported only on change.
+- Why the heating status is not inferred (tried and removed 2026-11-19): a fully opening valve
+  makes the reading rise fast, but a valve held partly open while a room keeps its temperature
+  barely moves it, so a trend rule reads "reached" while the radiator heats, lags at the edges and
+  mistakes small bumps for heating. Only a source that knows the demand (the tado° cloud via some
+  integration, or a pipe sensor) gives a usable status.
 - Open from that review: retry failed writes with backoff and a timeout; store the last command
   next to the last report so a write in flight at shutdown is not a hold; repair issue for window
   contacts unavailable while open; away vs. vacation temperatures; `zone.home`/`person` as idle

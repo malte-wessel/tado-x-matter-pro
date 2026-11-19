@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import HeatingConfigEntry
 from .const import MAX_TEMPERATURE, MIN_TEMPERATURE
 from .controller import RoomController
-from .engine.inference import Status
+from .engine.heating import Status
 from .engine.model import TEMPERATURE_STEP, Mode
 from .entity import RoomEntity
 
@@ -67,12 +67,18 @@ class RoomThermostat(RoomEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        """Heating while any thermostat heats (inferred), idle once all reached, else off."""
+        """Off, heating while any thermostat heats, idle once all with a demand have reached.
+
+        Without demand entities only "off" is known.
+        """
+        action = self.room.action
+        if action is None:
+            return None
         return {
             Status.HEATING: HVACAction.HEATING,
             Status.REACHED: HVACAction.IDLE,
             Status.OFF: HVACAction.OFF,
-        }[self.room.monitor.room_status]
+        }[action]
 
     @property
     def target_temperature(self) -> float | None:

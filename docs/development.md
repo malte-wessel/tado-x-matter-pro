@@ -20,10 +20,8 @@ holds the design, the decisions and the phases.
 | `engine/model.py` | Room configuration, inputs, persisted state, the desired output. |
 | `engine/room.py` | The reducer `step(state, inputs, config, now, event)` → new state, desired output, next wake-up: plan changes, expiries, the window state machine, events, the priority ladder, frost protection. |
 | `engine/external.py` | Classifies thermostat reports: ours, intermediate, converged, external. |
-| `engine/trend.py` | Port of Home Assistant's derivative sensor. |
-| `engine/inference.py` | The heating / reached / off rule. |
+| `engine/heating.py` | The heating / reached / off status from a thermostat's mode and demand; the room's action. |
 | `controller.py` | One room in Home Assistant: reads inputs, runs the engine, writes thermostats that deviate, stores state. |
-| `monitor.py` | Per room: finds each thermostat's temperature sensor, keeps the trends, infers the statuses. |
 | `store.py` | Persistence with versioned migrations. |
 | `config_flow.py` | House settings, options, the room subentry flow. |
 | `climate.py`, `sensor.py`, `number.py`, `binary_sensor.py`, `entity.py` | Entities; they only read the controller and call it. |
@@ -36,11 +34,11 @@ for every new rule.
 
 | Folder / file | Covers |
 | --- | --- |
-| `tests/python/engine/` | The engine: ladder, windows, holds, frost, the classifier, trend, inference. No Home Assistant. |
+| `tests/python/engine/` | The engine: ladder, windows, holds, frost, the classifier, the heating status. No Home Assistant. |
 | `tests/python/test_config_flow.py` | House form, options, adding and changing rooms. |
 | `tests/python/test_room.py` | Rooms in a real Home Assistant core with fake Matter-like thermostats: schedule, away, windows, dial turns, the room thermostat, numbers, reloads, restarts. |
-| `tests/python/test_heating_status.py` | Status sensors and the room's action; the trend compared with Home Assistant's own derivative helper over 300 random steps. |
-| `tests/python/replay.py`, `tests/python/engine/test_engine_replay.py`, `tests/fixtures/replay/` | Anonymized recordings of real Tado X thermostats (reading, mode, setpoint; seconds from the start) replayed through the trend and the rule. `uv run python -m tests.python.replay` compares trend windows. |
+| `tests/python/test_heating_status.py` | Status sensors from demand entities (%, on/off, unavailable, threshold) and the room's action. |
+| `tests/python/test_store.py`, `tests/fixtures/storage/` | Older store versions load into the current shape. |
 
 The fake thermostats (`tests/python/conftest.py`) behave like Tado X over Matter: only *off* and
 *heat*, mode and setpoint reported separately, a precise temperature sensor on the same device, and
@@ -63,8 +61,9 @@ The **Dev House** (`test/ha/custom_components/dev_house`, mounted only into the 
 fictional house to try the integration without hardware: 3 floors, 9 rooms, 11 Tado X-like
 thermostats (two rooms with two each, one left with its default name), window and door contacts,
 room sensors, an outdoor sensor, and *Away* / *Vacation* switches. A small thermal model warms rooms
-while valves are open and cools them otherwise; each thermostat shows its true `valve_open`, to
-check the heating status against.
+while valves are open and cools them otherwise; each thermostat shows its true `valve_open`, and a
+`sensor.<thermostat>_heating_demand` (%) plays the cloud integration: pick it as the thermostat's
+heating demand in the room's second step.
 
 Actions of the Dev House (Developer tools → Actions):
 
@@ -77,7 +76,7 @@ Actions of the Dev House (Developer tools → Actions):
 | `dev_house.set_outdoor_temperature` | Change the outdoor temperature. |
 
 Options in `test/ha/configuration.yaml`: `speed` makes rooms warm and cool faster than real time
-(keep 1 to judge the heating status, whose thresholds are per real hour); `report_delay` is how long
+(keep 1 for realistic timings); `report_delay` is how long
 a written setpoint takes to be reported back (above 5 s it exercises the fallback that recognises
 the integration's own writes by value).
 

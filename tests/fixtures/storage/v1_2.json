@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "minor_version": 2,
+  "key": "tado_x_matter_pro",
+  "data": {
+    "rooms": {
+      "room_a": {
+        "heating_temperature": 21.5,
+        "idle_temperature": 17.0,
+        "last_known": {"climate.room_a_trv": ["heat", 21.5]},
+        "status": {"climate.room_a_trv": "heating"}
+      }
+    }
+  }
+}

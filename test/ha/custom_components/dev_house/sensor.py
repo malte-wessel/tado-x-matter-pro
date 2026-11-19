@@ -1,4 +1,4 @@
-"""Thermostat temperature and humidity, room sensors and the outdoor temperature."""
+"""Thermostat temperature, humidity and heating demand, room sensors and the outdoor temperature."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ async def async_setup_entry(
     entry: DevHouseConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Per thermostat temperature + humidity, per room sensor, one outdoor sensor."""
+    """Per thermostat temperature, humidity and demand; per room sensor; one outdoor sensor."""
     sim = entry.runtime_data
     entities: list[SensorEntity] = []
     for room in ROOMS:
@@ -42,6 +42,15 @@ async def async_setup_entry(
                     f"sensor.{trv.object_id}_humidity",
                     dev,
                     lambda s=state: s.humidity,
+                )
+            )
+            # Tado X does not report this over Matter; the Dev House plays a cloud integration.
+            entities.append(
+                HeatingDemand(
+                    sim,
+                    f"sensor.{trv.object_id}_heating_demand",
+                    dev,
+                    lambda oid=trv.object_id: sim.trv_demand(oid),
                 )
             )
         if room.room_sensor:
@@ -94,3 +103,18 @@ class Humidity(Temperature):
         """Same as a temperature, other unit."""
         super().__init__(sim, entity_id, dev, value)
         self._attr_name = "Humidity"
+
+
+class HeatingDemand(Temperature):
+    """How much the thermostat heats, in %, as a cloud integration would report it."""
+
+    _attr_device_class = None
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_icon = "mdi:radiator"
+
+    def __init__(
+        self, sim: Simulation, entity_id: str, dev: DeviceInfo, value: Callable[[], float]
+    ) -> None:
+        """Same as a temperature, other unit."""
+        super().__init__(sim, entity_id, dev, value)
+        self._attr_name = "Heating demand"

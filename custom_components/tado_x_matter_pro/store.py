@@ -47,8 +47,6 @@ class RoomDict(TypedDict):
     # Last mode and setpoint each thermostat was known to have; tells changes made while
     # Home Assistant was down.
     last_known: dict[str, list[Any]]
-    # Inferred heating status per thermostat (the rule's hysteresis needs the previous one).
-    status: NotRequired[dict[str, str]]
 
 
 class StoreData(TypedDict):
@@ -125,10 +123,10 @@ class _Storage(Store[StoreData]):
         old_data: dict[str, Any],
     ) -> StoreData:
         rooms = old_data.get("rooms", {})
-        if old_major_version == 1 and old_minor_version < 2:
-            # 1.2: inferred heating status per thermostat
+        if old_major_version == 1 and old_minor_version < 3:
+            # 1.2 kept an inferred heating status per thermostat; 1.3 takes it from demand entities
             for room in rooms.values():
-                room.setdefault("status", {})
+                room.pop("status", None)
         return {"rooms": rooms}
 
 

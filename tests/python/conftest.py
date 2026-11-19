@@ -11,7 +11,6 @@ from homeassistant.components.climate.const import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigSubentryData
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import Context, HomeAssistant
@@ -48,6 +47,7 @@ class FakeTrv(ClimateEntity):
 
     A write reports the mode and the setpoint separately, like Matter; `writes` records the
     calls; `dial` changes it the way the device itself would, without a Home Assistant context.
+    Over Matter it says nothing about its valve, so neither does this one.
     """
 
     _attr_should_poll = False
@@ -61,14 +61,13 @@ class FakeTrv(ClimateEntity):
     )
 
     def __init__(self, entity_id: str) -> None:
-        """Start in heat at 18 °C; its device also carries a precise temperature sensor."""
+        """Start in heat at 18 °C."""
         self.entity_id = entity_id
         self._attr_unique_id = entity_id
         self._attr_name = entity_id.split(".")[1]
         self._attr_device_info = DeviceInfo(
             identifiers={("fake_trv", entity_id)}, name=self._attr_name
         )
-        self.sensor = FakeTemperature(entity_id, self._attr_device_info)
         self._attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
         self._attr_hvac_mode = HVACMode.HEAT
         self._attr_target_temperature = 18.0
@@ -94,8 +93,7 @@ class FakeTrv(ClimateEntity):
         self.async_write_ha_state()
 
     def read(self, temperature: float) -> None:
-        """A new reading: the precise sensor (0.01 °C) and the climate's own (0.1 °C)."""
-        self.sensor.set(temperature)
+        """A new reading (0.1 °C, like the climate entity of a Tado X)."""
         self._attr_current_temperature = round(temperature, 1)
         self.async_write_ha_state()
 
@@ -106,26 +104,6 @@ class FakeTrv(ClimateEntity):
         if temperature is not None:
             self._attr_target_temperature = temperature
         self.async_set_context(Context())
-        self.async_write_ha_state()
-
-
-class FakeTemperature(SensorEntity):
-    """The thermostat's own temperature sensor; every `set` writes (unchanged = a report)."""
-
-    _attr_should_poll = False
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-
-    def __init__(self, thermostat: str, device: DeviceInfo) -> None:
-        """Belong to the thermostat's device."""
-        self.entity_id = f"sensor.{thermostat.split('.')[1]}_temperature"
-        self._attr_unique_id = self.entity_id
-        self._attr_device_info = device
-        self._attr_native_value = 20.0
-
-    def set(self, value: float) -> None:
-        """A new reading."""
-        self._attr_native_value = round(value, 2)
         self.async_write_ha_state()
 
 
@@ -145,18 +123,12 @@ async def trvs(hass: HomeAssistant) -> AsyncIterator[dict[str, FakeTrv]]:
     ) -> None:
         add(list(entities.values()))
 
-    async def setup_sensor(
-        _hass: HomeAssistant, _entry: ConfigEntry, add: AddConfigEntryEntitiesCallback
-    ) -> None:
-        add([trv.sensor for trv in entities.values()])
-
     async def setup_entry(_hass: HomeAssistant, entry: ConfigEntry) -> bool:
-        await hass.config_entries.async_forward_entry_setups(entry, ["climate", "sensor"])
+        await hass.config_entries.async_forward_entry_setups(entry, ["climate"])
         return True
 
     mock_integration(hass, MockModule("fake_trv", async_setup_entry=setup_entry))
     mock_platform(hass, "fake_trv.climate", MockPlatform(async_setup_entry=setup_climate))
-    mock_platform(hass, "fake_trv.sensor", MockPlatform(async_setup_entry=setup_sensor))
     mock_platform(hass, "fake_trv.config_flow")
     assert await async_setup_component(hass, "climate", {})
     with mock_config_flow("fake_trv", FakeTrvFlow):
@@ -183,6 +155,8 @@ BATHROOM: dict[str, Any] = {
     "windows": [],
     "window": {"open_delay": {"seconds": 30}, "close_delay": {"minutes": 5}, "remind_after": 0},
 }
+# A heating demand for the kitchen thermostat, as a cloud integration would provide it.
+KITCHEN_DEMAND: dict[str, str] = {"climate.kitchen_trv": "sensor.kitchen_demand"}
 HOUSE_OPTIONS: dict[str, Any] = {
     "idle_sensors": ["input_boolean.away"],
     "frost_temperature": 7.0,

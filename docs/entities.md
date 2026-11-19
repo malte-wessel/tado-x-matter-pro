@@ -10,7 +10,7 @@ Every room gets one device with these entities:
 | [Eco temperature](#numbers) | `number.kitchen_heating_eco_temperature` | always |
 | [Window open](#window-open) | `binary_sensor.kitchen_heating_window_open` | if the room has windows or doors |
 | [Back on](#back-on) | `sensor.kitchen_heating_back_on` | if the room has windows or doors |
-| [*Thermostat* heating](#heating-status-per-thermostat) | `sensor.kitchen_heating_thermostat_kitchen_heating` | one per thermostat |
+| [*Thermostat* heating](#heating-status-per-thermostat) | `sensor.kitchen_heating_thermostat_kitchen_heating` | per thermostat with a heating demand entity |
 
 ## Entity ids and names
 
@@ -32,7 +32,7 @@ and the device in Home Assistant as usual; the integration finds them by their u
 | State (mode) | `auto` – follows the plan · `heat` – a manual hold · `off` – the room is switched off. A window pausing the room or frost protection heating it does not change this mode; the [Mode sensor](#mode) shows them. |
 | `temperature` | The current target. While a window pauses the room: the temperature it will return to. Empty when the room is off. |
 | `current_temperature` | The room sensor; without one, the mean of the thermostats' readings. |
-| `hvac_action` | `heating` while any thermostat heats, `idle` once all reached their setpoint, `off` while they are off ([Heating status](heating-status.md)). |
+| `hvac_action` | `off` while all thermostats are off; `heating` while any heats, `idle` when all have a status and none heats – only known from [heating demand entities](heating-status.md); empty otherwise. |
 | Range / step | 5–30 °C, 0.5 °C |
 
 What setting it does is described in [How it works](how-it-works.md#the-room-thermostat). It works
@@ -99,20 +99,16 @@ device, named after the thermostat (*Thermostat Kitchen heating*, in German *…
 
 | State | English | German | Meaning |
 | --- | --- | --- | --- |
-| `heating` | Heating | Heizt | The radiator is being heated. |
-| `reached` | Reached | Erreicht | The thermostat is on, but its setpoint is reached; the valve is (mostly) closed. |
+| `heating` | Heating | Heizt | The demand is at or above the threshold, or on. |
+| `reached` | Reached | Erreicht | The thermostat is on, but its demand is below the threshold, or off. |
 | `off` | Off | Aus | The thermostat is off. |
+| unknown | | | The thermostat or its demand entity is unavailable. |
 
 Attributes:
 
 | Attribute | Meaning |
 | --- | --- |
 | `thermostat` | The thermostat's entity id. |
-| `temperature` | The thermostat's own reading (from its precise temperature sensor if it has one). |
-| `trend` | How fast that reading changes, in °C per hour, over the last 10 minutes. |
+| `demand` | The heating demand entity's value: a percentage, or `true`/`false`. Not recorded in the history; the demand entity keeps its own. |
 
-`temperature` and `trend` change with every reading and are not recorded in the history; the
-status itself is.
-
-How the status is inferred – and when it can be wrong – is explained in
-[Heating status](heating-status.md).
+Where the status comes from is explained in [Heating status](heating-status.md).

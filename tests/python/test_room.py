@@ -228,7 +228,7 @@ async def test_readings_alone_do_not_write_the_store(
     hass_storage.pop(DOMAIN, None)
 
     for reading in (20.1, 20.2, 20.3):
-        trvs["climate.bath_trv"].sensor.set(reading)  # the status stays "reached"
+        trvs["climate.bath_trv"].read(reading)
         hass.states.async_set("schedule.ground_floor", "on", {"next_event": None})
         await advance(hass, freezer, 5)
     assert DOMAIN not in hass_storage
@@ -341,7 +341,6 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
         "number.kitchen_heating_eco_temperature",
         "binary_sensor.kitchen_heating_window_open",
         "sensor.kitchen_heating_back_on",
-        "sensor.kitchen_heating_kitchen_trv_heating",
     }
     climate = registry.async_get("climate.kitchen_heating")
     assert climate is not None

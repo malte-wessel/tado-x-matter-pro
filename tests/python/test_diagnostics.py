@@ -52,7 +52,12 @@ async def test_a_dial_turn_shows_up_in_the_trace(
         None,
         "ExternalChange(hvac_mode='heat', temperature=23.0)",
     ) in trace
-    assert kitchen["heating"]["climate.kitchen_trv"]["sensor"] == "sensor.kitchen_trv_temperature"
+    # without a demand entity nothing is known about heating
+    assert kitchen["heating"]["climate.kitchen_trv"] == {
+        "demand_entity": None,
+        "demand": None,
+        "status": None,
+    }
 
     climate = er.async_get(hass).async_get("climate.kitchen_heating")
     assert climate is not None

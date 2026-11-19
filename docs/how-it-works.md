@@ -99,9 +99,9 @@ whole:
 | Mode **auto** / turn on | Back to the plan: any hold or "room off" ends. |
 | Mode **off** / turn off | The room is switched off **until you set it to auto or heat again** – plan changes do not switch it back on. Frost protection still applies. |
 
-Its *current temperature* is the room sensor (or the thermostats' mean), and its *action* is the
-[heating status](heating-status.md): *heating* while any thermostat of the room heats, *idle* once
-all have reached their setpoint, *off* while they are off.
+Its *current temperature* is the room sensor (or the thermostats' mean). Its *action* is *off*
+while all thermostats are off; whether it heats is known only from
+[heating demand entities](heating-status.md).
 
 ## Windows
 

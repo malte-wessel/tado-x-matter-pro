@@ -16,8 +16,8 @@ a careful way over, one room at a time.
 | Away / vacation booleans as "idle sensors" | *Away sensors* in the house settings |
 | Timer per room for the delay after a window closed | The room's *Back on after* setting; no helper |
 | Window handling that reacts to every opening | *Switch off after* (open delay) – short openings are ignored |
-| Derivative "trend" helper per thermostat | Built in; `trend` attribute of the status sensor |
-| Template "status" sensor per thermostat | The status sensor per thermostat (`heating` / `reached` / `off`) |
+| Derivative "trend" helper per thermostat | Not needed; the status comes from a [heating demand](heating-status.md) entity |
+| Template "status" sensor per thermostat | The status sensor per thermostat (`heating` / `reached` / `off`), for thermostats with a heating demand entity |
 | Template macros for "plan", "manual", "next change", "back on at" | The Mode sensor and its attributes |
 
 ## Step by step

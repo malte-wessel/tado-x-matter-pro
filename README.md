@@ -12,7 +12,7 @@ Tado X Matter Pro does that in one integration: you add a room, pick its thermos
 window contacts, and get a room thermostat that follows the plan, pauses for open windows,
 remembers manual changes, and shows which radiator is heating.
 
-> **Status: pre-release.** Room control and the heating status work. Boost, timed overrides, the
+> **Status: pre-release.** Room control works. Boost, timed overrides, the
 > window reminder and repair issues are planned. Not affiliated with tado°.
 
 ## Features
@@ -26,8 +26,9 @@ remembers manual changes, and shows which radiator is heating.
   changes nothing – and back on a few minutes after closing.
 - **Manual changes** at the thermostat, in the tado° app or in Home Assistant are held until the
   next schedule change; rooms with several thermostats follow. Holds survive restarts.
-- **Is it heating?** Tado X does not report its valve over Matter; the integration infers it per
-  thermostat from the temperature trend and shows it as the room thermostat's action.
+- **Is it heating?** Tado X does not report its valve over Matter. Give a thermostat a heating
+  demand entity – a cloud integration's heating power or a pipe sensor – and the integration shows
+  per thermostat whether it heats, and the room thermostat's action.
 - **Frost protection** for rooms that are off or have a window open.
 - **Explains itself:** a mode sensor per room says what decides right now, when the schedule
   changes next, and when heating resumes after a window.
@@ -40,7 +41,7 @@ remembers manual changes, and shows which radiator is heating.
 | [Configuration](docs/configuration.md) | House settings and rooms, field by field |
 | [How it works](docs/how-it-works.md) | Priorities, schedule, windows, manual changes, frost, restarts |
 | [Entities](docs/entities.md) | What each room creates, states and attributes |
-| [Heating status](docs/heating-status.md) | How "heating" is inferred, and its limits |
+| [Heating status](docs/heating-status.md) | Heating demand entities, the threshold, the room's action |
 | [Dashboards](docs/dashboards.md) · [Automations](docs/automations.md) | Examples |
 | [Migrating from a DIY setup](docs/migrating.md) | From blueprint and helpers, room by room |
 | [Troubleshooting](docs/troubleshooting.md) | Common surprises, debug logging |

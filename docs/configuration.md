@@ -17,6 +17,7 @@ made with the room thermostat.
 | --- | --- | --- |
 | **Away sensors** | none | `input_boolean` or `binary_sensor` entities. While **any** of them is on, every room uses its eco temperature, whatever the schedule says. Typical: an away switch and a vacation switch. |
 | **Frost protection** | 7 °C | No room is heated to less than this, and a room that is switched off or has a window open is heated to this when its temperature drops below it. See [frost protection](how-it-works.md#frost-protection). |
+| **Heating demand threshold** | 3 % | From this demand on, a thermostat with a percentage [heating demand entity](heating-status.md) counts as heating. |
 
 Section **Boost** (collapsed) – *planned, stored but not used yet*
 
@@ -48,7 +49,7 @@ Changing the house settings reloads the integration. Rooms keep their state.
 | **Thermostats** | yes | – | All radiator thermostats of the room. A thermostat can belong to only one room. All thermostats of a room always get the same target. |
 | **Schedule** | yes | – | A schedule helper. During its blocks the room is heated to its comfort temperature, or to the block's own temperature. |
 | **Windows and doors** | no | none | Contacts (`binary_sensor`, on = open). While one is open long enough, the room's thermostats are switched off. |
-| **Room temperature** | no | none | A temperature sensor in the room, shown as the room's current temperature and used for frost protection. Without it, the mean of the thermostats' own readings is used – which reads high, because the thermostats sit at the radiator. |
+| **Room temperature** | no | none | A temperature sensor in the room, shown as the room's current temperature and used for frost protection. Without it, the mean of the thermostats' own readings is used. |
 
 Section **Windows** (collapsed)
 
@@ -57,6 +58,12 @@ Section **Windows** (collapsed)
 | **Switch off after** | 30 s | How long a window must be open before the room is switched off. Shorter openings are ignored entirely – a door opened to walk through, a contact that bounces. Set 0 to switch off at once. |
 | **Back on after** | 5 min | How long to wait after the last window closed before heating again. A window opened again during the wait switches the room off at once. |
 | **Remind after** | 30 min | *Planned:* send the window reminder after this long; 0 = never for this room. |
+
+Second step **Heating demand** (optional)
+
+One field per thermostat of the room, labelled with its entity id. Pick a `sensor` that reports a
+heating demand in % or a `binary_sensor` that is on while the thermostat heats – or leave it
+empty. Only thermostats with one get a heating status; see [Heating status](heating-status.md).
 
 ### Schedules
 
@@ -87,15 +94,17 @@ temperature.
 2. Pick the thermostats first – the name can stay empty and is then taken from their area.
 3. Pick the schedule, the windows and doors, and the room sensor if there is one.
 4. Open **Windows** to change the delays if you like.
+5. In the second step, pick a heating demand entity per thermostat if you have one.
 
 The room starts at once: its thermostats are set to what the plan says right now. From then on,
 changes made at a thermostat are respected (see [How it works](how-it-works.md#manual-changes)).
 
 ### Changing a room
 
-The room's three-dot menu → **Reconfigure** shows the same form with the current values. Saving
-reloads the integration; the room keeps its comfort and eco temperatures, holds and window state.
-Removing all windows from a room also removes its *Window open* entity.
+The room's three-dot menu → **Reconfigure** shows the same two steps with the current values.
+Saving reloads the integration; the room keeps its comfort and eco temperatures, holds and window
+state. Removing all windows from a room also removes its *Window open* entity; removing a
+thermostat's demand entity removes its status sensor.
 
 ### Errors
 
@@ -103,3 +112,4 @@ Removing all windows from a room also removes its *Window open* entity.
 | --- | --- |
 | *Pick at least one thermostat.* | The thermostat list is empty. |
 | *A thermostat already belongs to another room.* | One of the chosen thermostats is used by another room. Remove it there first. |
+| *This sensor does not report a number.* | A heating demand `sensor` must report a percentage. Pick another sensor, or a `binary_sensor`. |

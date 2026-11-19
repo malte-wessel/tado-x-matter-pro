@@ -83,7 +83,8 @@ entities:
 
 ## Which radiator is heating
 
-For a room with two thermostats, their status sensors side by side:
+For a room with two thermostats and their [heating demand](heating-status.md) entities, the status
+sensors side by side:
 
 ```yaml
 type: grid
@@ -93,15 +94,9 @@ cards:
   - type: tile
     entity: sensor.bathroom_heating_thermostat_bathroom_heating
     name: Radiator
-    state_content:
-      - state
-      - trend
   - type: tile
     entity: sensor.bathroom_heating_thermostat_bathroom_tub_heating
     name: Tub
-    state_content:
-      - state
-      - trend
 ```
 
 Over the day, a history graph shows when each radiator heated:

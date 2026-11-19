@@ -13,6 +13,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
     SubentryFlowResult,
 )
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import (
@@ -39,6 +40,8 @@ from .const import (
     CONF_BOOST_DURATION,
     CONF_BOOST_TEMPERATURE,
     CONF_CLOSE_DELAY,
+    CONF_DEMAND,
+    CONF_DEMAND_THRESHOLD,
     CONF_FROST_TEMPERATURE,
     CONF_IDLE_SENSORS,
     CONF_NOTIFY,
@@ -53,6 +56,7 @@ from .const import (
     DEFAULT_BOOST_MINUTES,
     DEFAULT_BOOST_TEMPERATURE,
     DEFAULT_CLOSE_DELAY_MINUTES,
+    DEFAULT_DEMAND_THRESHOLD,
     DEFAULT_FROST_TEMPERATURE,
     DEFAULT_OPEN_DELAY_SECONDS,
     DEFAULT_REMIND_AFTER_MINUTES,
@@ -110,6 +114,14 @@ def _house_schema(hass: HomeAssistant, options: Mapping[str, Any]) -> vol.Schema
                 CONF_FROST_TEMPERATURE,
                 default=options.get(CONF_FROST_TEMPERATURE, DEFAULT_FROST_TEMPERATURE),
             ): _temperature(MIN_TEMPERATURE, 12),
+            vol.Optional(
+                CONF_DEMAND_THRESHOLD,
+                default=options.get(CONF_DEMAND_THRESHOLD, DEFAULT_DEMAND_THRESHOLD),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=1, max=100, step=1, unit_of_measurement="%", mode=NumberSelectorMode.BOX
+                )
+            ),
             vol.Required(SECTION_BOOST): section(
                 vol.Schema(
                     {
@@ -175,7 +187,14 @@ class HouseOptionsFlow(OptionsFlow):
 
 
 class RoomSubentryFlow(ConfigSubentryFlow):
-    """Add or change a room: thermostats, schedule, windows, room sensor, delays."""
+    """Add or change a room: thermostats, schedule, windows, room sensor, delays; then demand."""
+
+    def __init__(self) -> None:
+        """Start without a room; the first step fills it in."""
+        super().__init__()
+        self._title = ""
+        self._room: dict[str, Any] = {}
+        self._reconfiguring = False
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Add a room."""
@@ -196,21 +215,77 @@ class RoomSubentryFlow(ConfigSubentryFlow):
         if user_input is not None:
             errors = self._validate(user_input, step_id)
             if not errors:
-                name = (user_input.pop(CONF_NAME, "") or "").strip() or self._default_name(
+                self._title = (user_input.pop(CONF_NAME, "") or "").strip() or self._default_name(
                     user_input[CONF_THERMOSTATS]
                 )
-                if step_id == "reconfigure":
-                    return self.async_update_and_abort(
-                        self._get_entry(),
-                        self._get_reconfigure_subentry(),
-                        title=name,
-                        data=user_input,
-                    )
-                return self.async_create_entry(title=name, data=user_input)
+                self._room = user_input
+                self._reconfiguring = step_id == "reconfigure"
+                return await self.async_step_demand()
             current = user_input
         return self.async_show_form(
             step_id=step_id, data_schema=_room_schema(current), errors=errors
         )
+
+    async def async_step_demand(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Optionally, per thermostat, an entity that says how much it heats."""
+        thermostats: list[str] = self._room[CONF_THERMOSTATS]
+        errors: dict[str, str] = {}
+        if user_input is None:
+            stored = (
+                self._get_reconfigure_subentry().data.get(CONF_DEMAND, {})
+                if self._reconfiguring
+                else {}
+            )
+            current = {t: stored[t] for t in thermostats if t in stored}
+        else:
+            current = {t: user_input[t] for t in thermostats if user_input.get(t)}
+            errors = self._validate_demand(current)
+            if not errors:
+                data = {**self._room, CONF_DEMAND: current}
+                if self._reconfiguring:
+                    return self.async_update_and_abort(
+                        self._get_entry(),
+                        self._get_reconfigure_subentry(),
+                        title=self._title,
+                        data=data,
+                    )
+                return self.async_create_entry(title=self._title, data=data)
+        schema = vol.Schema(
+            {
+                vol.Optional(t, description={"suggested_value": current.get(t)}): EntitySelector(
+                    EntitySelectorConfig(domain=["sensor", "binary_sensor"])
+                )
+                for t in thermostats
+            }
+        )
+        names = "\n".join(
+            f"- {t}: {state.name}" if (state := self.hass.states.get(t)) else f"- {t}"
+            for t in thermostats
+        )
+        return self.async_show_form(
+            step_id="demand",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"thermostats": names},
+        )
+
+    def _validate_demand(self, demand: Mapping[str, str]) -> dict[str, str]:
+        """Check that demand sensors report a number; unknown and unavailable pass for now."""
+        errors: dict[str, str] = {}
+        for thermostat, entity_id in demand.items():
+            state = self.hass.states.get(entity_id)
+            if (
+                entity_id.startswith("sensor.")
+                and state is not None
+                and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            ):
+                try:
+                    float(state.state)
+                except ValueError:
+                    errors[thermostat] = "demand_not_numeric"
+        return errors
 
     def _validate(self, user_input: Mapping[str, Any], step_id: str) -> dict[str, str]:
         thermostats = set(user_input.get(CONF_THERMOSTATS, []))

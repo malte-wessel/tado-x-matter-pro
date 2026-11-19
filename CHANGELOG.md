@@ -9,8 +9,10 @@ Initial release.
 - Per room: a thermostat (auto / heat / off), a mode sensor, comfort and eco temperatures and a
   window sensor. Rooms follow their schedule and the away sensors, switch off for open windows,
   keep manual changes until the next schedule change and sync rooms with several thermostats.
-- Per thermostat a heating status (heating / reached / off), inferred from its temperature and
-  trend, since Tado X does not report its valve over Matter; the room thermostat shows it as its
+- Per thermostat an optional heating demand entity – a percentage (e.g. a cloud integration's
+  heating power) or an on/off value (e.g. a pipe sensor) – since Tado X does not report its valve
+  over Matter. Thermostats with one get a heating status (heating / reached / off, heating from a
+  house-wide threshold, default 3 %); the room thermostat shows the most active one as its
   action.
 - Documentation in `docs/`: installation, configuration, how it works, entities, heating status,
   dashboards, automations, migrating, troubleshooting, development.
@@ -24,8 +26,6 @@ Initial release.
   a restart, inputs that have not come back yet keep the last decision.
 - While a hand-turned dial settles, nothing is written to the room's thermostats, so the dial is
   never turned back to the old value.
-- The heating status reacts faster: the trend looks at the last 10 minutes instead of 20, so
-  *heating* ends about 5 minutes after the radiator's reading peaks instead of 11, without new short
-  false *heating*. Checked by replaying anonymized recordings of real Tado X thermostats.
 - The store is written only when something changed, not after every thermostat reading; the
-  heating status sensors' `temperature` and `trend` attributes are not recorded.
+  heating status sensors' `demand` attribute is not recorded (the demand entity keeps its own
+  history).
