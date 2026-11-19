@@ -432,3 +432,30 @@ async def test_a_dial_turned_while_stopped_is_a_hold_also_if_never_written(
     assert mode(hass, "bathroom") == "manual"
     assert trv_state(hass, "climate.bath_trv") == ("heat", 23.0)
     assert trv_state(hass, "climate.bath_tub_trv") == ("heat", 23.0)
+
+
+async def test_while_a_window_pauses_the_room_its_target_is_what_it_returns_to(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    await setup_house()
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": "climate.kitchen_heating", "temperature": 24},
+        blocking=True,
+    )
+    set_inputs(hass, kitchen_window="on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 30)
+    assert mode(hass, "kitchen") == "window"
+    room = hass.states.get("climate.kitchen_heating")
+    assert room is not None
+    assert room.attributes["temperature"] == 24  # the hold, not the plan's 21
+
+    await hass.services.async_call(
+        "climate", "turn_off", {"entity_id": "climate.kitchen_heating"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    room = hass.states.get("climate.kitchen_heating")
+    assert room is not None
+    assert room.attributes["temperature"] is None  # switched off: nothing to return to

@@ -84,7 +84,7 @@ What ends a hold:
 | The temperature the plan uses changes | ends |
 | Room thermostat set to *auto* | ends |
 | Another manual change | replaced by the new one |
-| Restart, reload, reconfigure | kept |
+| Restart, reload, changing the room | kept |
 | Window opens | kept – the window still switches the room off, and when it is closed the hold applies again |
 
 ## The room thermostat
@@ -97,7 +97,7 @@ whole:
 | Set a temperature | A hold at that temperature until the next plan change (mode *heat*). |
 | Mode **heat** | A hold at the current target until the next plan change. |
 | Mode **auto** / turn on | Back to the plan: any hold or "room off" ends. |
-| Mode **off** / turn off | The room is switched off **until you set it to auto or heat again** – plan changes do not switch it back on. Frost protection still applies. |
+| Mode **off** / turn off | The room is switched off **until you set it to auto or heat again** – plan changes do not switch it back on. A change at a thermostat (dial, tado° app) also ends it: it becomes a hold until the next plan change, and then the plan applies. Frost protection still applies. |
 
 Its *current temperature* is the room sensor (or the thermostats' mean). Its *action* is *off*
 while all thermostats are off; whether it heats is known only from

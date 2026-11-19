@@ -31,6 +31,11 @@ Initial release.
   also detected on thermostats the integration never had to write.
 - While a hand-turned dial settles, nothing is written to the room's thermostats, so the dial is
   never turned back to the old value.
+- While a window pauses a room, its thermostat's target shows what the room returns to – a hold's
+  temperature or the plan's; a room switched off shows none.
+- Removing a thermostat from a room also removes its status sensor; status sensors are named after
+  the thermostat also when it was not set up yet.
+- Settings that have no effect yet (boost, window reminder) are marked *planned* in the forms.
 - The store is written only when something changed, not after every thermostat reading; the
   heating status sensors' `demand` attribute is not recorded (the demand entity keeps its own
   history).

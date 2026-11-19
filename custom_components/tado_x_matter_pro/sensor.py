@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HeatingConfigEntry
@@ -31,21 +31,44 @@ async def async_setup_entry(
             entities.append(BackOn(room))
         elif entity_id := registry.async_get_entity_id("sensor", DOMAIN, f"{room_id}_back_on"):
             registry.async_remove(entity_id)  # the room lost its windows
-        for thermostat in room.thermostats:
-            registry_entry = registry.async_get(thermostat)
-            # the registry id survives renaming the thermostat's entity id
-            key = registry_entry.id if registry_entry else thermostat
-            if thermostat not in room.demand:
-                if entity_id := registry.async_get_entity_id(
-                    "sensor", DOMAIN, f"{room_id}_status_{key}"
-                ):
-                    registry.async_remove(entity_id)  # the thermostat lost its demand entity
-                continue
-            state = hass.states.get(thermostat)
-            entities.append(
-                ThermostatStatus(room, thermostat, key, state.name if state else thermostat)
+        statuses = [
+            ThermostatStatus(
+                room,
+                thermostat,
+                _thermostat_key(hass, thermostat),
+                _thermostat_name(hass, thermostat),
             )
-        async_add_entities(entities, config_subentry_id=room_id)
+            for thermostat in room.thermostats
+            if thermostat in room.demand
+        ]
+        # Status sensors of thermostats that left the room or lost their demand entity go.
+        keep = {status.unique_id for status in statuses}
+        for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            unique_id = registry_entry.unique_id
+            if unique_id.startswith(f"{room_id}_status_") and unique_id not in keep:
+                registry.async_remove(registry_entry.entity_id)
+        async_add_entities([*entities, *statuses], config_subentry_id=room_id)
+
+
+def _thermostat_key(hass: HomeAssistant, thermostat: str) -> str:
+    """Return the thermostat's registry id, which survives renaming its entity id."""
+    registry_entry = er.async_get(hass).async_get(thermostat)
+    return registry_entry.id if registry_entry else thermostat
+
+
+def _thermostat_name(hass: HomeAssistant, thermostat: str) -> str:
+    """Return the thermostat's name, also before its integration has set it up."""
+    if state := hass.states.get(thermostat):
+        return state.name
+    registry_entry = er.async_get(hass).async_get(thermostat)
+    if registry_entry is None:
+        return thermostat
+    if registry_entry.name or registry_entry.original_name:
+        return str(registry_entry.name or registry_entry.original_name)
+    device = (
+        dr.async_get(hass).async_get(registry_entry.device_id) if registry_entry.device_id else None
+    )
+    return (device.name_by_user or device.name or thermostat) if device else thermostat
 
 
 class ModeSensor(RoomEntity, SensorEntity):

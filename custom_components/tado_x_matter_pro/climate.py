@@ -20,7 +20,7 @@ from . import HeatingConfigEntry
 from .const import MAX_TEMPERATURE, MIN_TEMPERATURE
 from .controller import RoomController
 from .engine.heating import Status
-from .engine.model import TEMPERATURE_STEP, Mode
+from .engine.model import TEMPERATURE_STEP
 from .entity import RoomEntity
 
 
@@ -82,11 +82,16 @@ class RoomThermostat(RoomEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        """The setpoint; while a window pauses the room, the one it returns to."""
+        """The setpoint; while a window pauses the room, the one it returns to; empty when off."""
         desired = self.room.desired
-        if desired is None or desired.mode is Mode.OFF:
+        if desired is None:
             return None
-        return desired.temperature if desired.temperature is not None else desired.plan_target
+        if desired.temperature is not None:
+            return desired.temperature  # heating: the plan, a hold, or frost protection
+        override = self.room.state.override
+        if override is not None:
+            return override.temperature  # a hold it returns to; a room switched off stays empty
+        return desired.plan_target
 
     @property
     def current_temperature(self) -> float | None:

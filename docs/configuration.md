@@ -5,7 +5,7 @@ Everything is set up in the Home Assistant UI; there is no YAML. The integration
 - **House settings** – once, for all rooms. Shown when you add the integration, changed later with
   **Configure** on the integration page.
 - **Rooms** – one per room, added with **Add room** on the integration page and changed with the
-  room's **Reconfigure**.
+  room's **Change room**.
 
 What is *not* configuration: the comfort and eco temperatures are entities you change on your
 dashboard ([Entities](entities.md#numbers)), the times live in the schedule helpers, and holds are
@@ -101,7 +101,7 @@ changes made at a thermostat are respected (see [How it works](how-it-works.md#m
 
 ### Changing a room
 
-The room's three-dot menu → **Reconfigure** shows the same two steps with the current values.
+The room's three-dot menu → **Change room** shows the same two steps with the current values.
 Saving reloads the integration; the room keeps its comfort and eco temperatures, holds and window
 state. Removing all windows from a room also removes its *Window open* entity; removing a
 thermostat's demand entity removes its status sensor.

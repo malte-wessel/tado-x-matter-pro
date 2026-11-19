@@ -20,7 +20,7 @@ the decisions and the phases.
 ## Rules that are not obvious from the code
 
 1. **Decisions live in the engine.** `engine/` decides what a room should do; the Home Assistant
-   side (`controller.py`, `trv.py`, entities) only collects inputs, runs `engine.step` and carries out
+   side (`controller.py` and the entities) only collects inputs, runs `engine.step` and carries out
    its effects. Never decide heating behaviour in an entity or a listener. The engine takes an explicit
    `now` (aware UTC); it never reads the clock.
 2. **The integration writes a TRV only when it deviates** from the desired state. A reload or restart
@@ -33,7 +33,7 @@ the decisions and the phases.
    `tests/fixtures/storage/` and a load test.
 5. **Strings go through `strings.json`** and the translation files (en is the source, de second).
    Logbook and notification texts cannot be translated by Home Assistant; they come from
-   `messages.py` by `hass.config.language`. Log messages and config errors stay English.
+   `messages.py` by `hass.config.language` (create it with the first such text). Log messages and config errors stay English.
 6. **Python style is ruff `ALL`** with the ignores in `pyproject.toml` (HA style: runtime imports, no
    copyright headers) and mypy strict. Every module starts with a one-line docstring.
 7. **Tests describe behaviour.** HA tests drive the real config entry (`MockConfigEntry`,

@@ -8,6 +8,7 @@ from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -161,3 +162,22 @@ async def test_a_room_with_some_demand_entities(hass: HomeAssistant, setup_house
     demand(hass, "binary_sensor.bath_pipe_hot", "on")
     await hass.async_block_till_done()
     assert action(hass, "bathroom") == "heating"
+
+
+async def test_a_thermostat_leaving_the_room_takes_its_status_sensor_along(
+    hass: HomeAssistant, setup_house: Setup
+) -> None:
+    demand(hass, "binary_sensor.bath_pipe_hot", "on")
+    demand(hass, "binary_sensor.tub_pipe_hot", "on")
+    entry = await setup_with(hass, setup_house, {"Bathroom": {**BATHROOM, "demand": BOTH_DEMANDS}})
+    assert hass.states.get(TUB_STATUS) is not None
+    subentry = next(iter(entry.subentries.values()))
+    hass.config_entries.async_update_subentry(
+        entry,
+        subentry,
+        data={**BATHROOM, "thermostats": ["climate.bath_trv"], "demand": BATH_DEMAND},
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(BATH_STATUS) is not None
+    assert hass.states.get(TUB_STATUS) is None
+    assert er.async_get(hass).async_get(TUB_STATUS) is None

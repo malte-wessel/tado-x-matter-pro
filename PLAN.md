@@ -28,7 +28,7 @@ Quality bar and tooling come from `pro-budget`.
 | Language | English names, keys and states everywhere; translations `strings.json` + `translations/{en,de}.json`. Logbook and notification texts (which HA cannot translate) come from `messages.py` by `hass.config.language`. |
 | Privacy | The repo is public: no data from a real installation (names, entity ids, places, schedules, coordinates, raw diagnostics or history). Test fixtures are synthetic or anonymized. |
 | Minimum HA | 2026.10 (decided 2026-10-27). |
-| Python tooling | uv, ruff `ALL` with documented ignores, mypy strict, pytest-homeassistant-custom-component 0.13.370, `import probatio as vol`. |
+| Python tooling | uv, ruff `ALL` with documented ignores, mypy strict, pytest-homeassistant-custom-component 0.13.371 (HA 2026.10.0), `import probatio as vol`. |
 | Name / domain | Tado X Matter Pro, domain `tado_x_matter_pro`. |
 
 ## Facts that shape the design

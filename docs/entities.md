@@ -30,7 +30,7 @@ and the device in Home Assistant as usual; the integration finds them by their u
 | Property | Value |
 | --- | --- |
 | State (mode) | `auto` – follows the plan · `heat` – a manual hold · `off` – the room is switched off. A window pausing the room or frost protection heating it does not change this mode; the [Mode sensor](#mode) shows them. |
-| `temperature` | The current target. While a window pauses the room: the temperature it will return to. Empty when the room is off. |
+| `temperature` | The current target. While a window pauses the room: the temperature it will return to (a hold's, or the plan's). Empty when the room is switched off – unless frost protection heats it, then the frost temperature. |
 | `current_temperature` | The room sensor; without one, the mean of the thermostats' readings. |
 | `hvac_action` | `off` while all thermostats are off; `heating` while any heats, `idle` when all have a status and none heats – only known from [heating demand entities](heating-status.md); empty otherwise. |
 | Range / step | 5–30 °C, 0.5 °C |

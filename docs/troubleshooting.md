@@ -55,7 +55,7 @@ carried in may need a minute or more.
 ## The heating status is missing, unknown or late
 
 - **Missing:** only thermostats with a [heating demand](heating-status.md) entity have one. Add it
-  in the room's second step (**Reconfigure**).
+  in the room's second step (**Change room**).
 - **Unknown:** the demand entity or the thermostat is unavailable – check the demand entity first.
 - **Late:** a cloud demand is only as fresh as its integration's polling. The status sensor's
   `demand` attribute shows the value it used.

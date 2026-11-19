@@ -61,23 +61,24 @@ data:
   hvac_mode: auto
 ```
 
-`climate.turn_on` does the same. Targets can be areas or floors:
+`climate.turn_on` does the same. For several rooms at once, put a label (e.g. *Heating rooms*) on
+the room thermostats and target the label:
 
 ```yaml
 action: climate.set_hvac_mode
 target:
-  floor_id: first_floor
+  label_id: heating_rooms
 data:
   hvac_mode: auto
 ```
 
-Careful: targeting an area also reaches the thermostats themselves if they are in that area. Use
-`entity_id` targets with the room thermostats, or put a label on the room thermostats and target the
-label, to be sure.
+Don't target an area or floor with `hvac_mode: auto`: that also reaches the Tado X thermostats in
+it, which have no *auto* mode, and the action fails.
 
 ## Switch a room off for a while
 
-Off lasts until the room is set back to *auto* – also across schedule changes. For example, the
+Off lasts until the room is set back to *auto* – also across schedule changes – or until someone
+changes a thermostat by hand. For example, the
 guest room while it is not used:
 
 ```yaml
