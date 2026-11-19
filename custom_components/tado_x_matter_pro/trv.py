@@ -37,6 +37,9 @@ CONFIRM_WITHIN = timedelta(seconds=60)  # after the last attempt, then the write
 CALL_TIMEOUT = 30  # seconds a service call may take before it counts as failed
 # After giving up, a report that still deviates sends again, at most this often.
 REAPPLY_AFTER = timedelta(minutes=10)
+# And two single late attempts after giving up – for a thermostat that shows available but stays
+# silent, so no report would ever trigger a resend. One-shot, not a periodic tick.
+LATE_ATTEMPTS = (timedelta(minutes=30), timedelta(minutes=60))
 # Values commanded lately: a late delivery of one of them is ours, not a manual change.
 RECENT = timedelta(minutes=20)
 RECENT_MAX = 5
@@ -84,6 +87,7 @@ class TrvWriter:
         self._last_attempt: datetime | None = None
         self.unconfirmed_since: datetime | None = None
         self._timer: CALLBACK_TYPE | None = None
+        self._late_timers: list[CALLBACK_TYPE] = []
         self._issue_timer: CALLBACK_TYPE | None = None
         self._issue = False
         self._task: asyncio.Task[None] | None = None
@@ -217,6 +221,11 @@ class TrvWriter:
             self._counters["gave_up"] += 1
             self.stats["gave_up"] += 1
             self._trace("gave_up", thermostat=self.entity_id, want=list(self.desired or ()))
+            now = dt_util.utcnow()
+            self._late_timers = [
+                async_track_point_in_utc_time(self.hass, self._on_late_attempt, now + after)
+                for after in LATE_ATTEMPTS
+            ]
             _LOGGER.warning(
                 "%s: %s did not confirm %s after %d attempts",
                 self.room,
@@ -232,6 +241,15 @@ class TrvWriter:
         self._send()
         if self.phase is Phase.PENDING:
             self._arm()
+
+    @callback
+    def _on_late_attempt(self, _now: datetime) -> None:
+        if self.phase is not Phase.GAVE_UP:
+            return
+        self._counters["late_attempt"] += 1
+        self.stats["late_attempts"] += 1
+        self._trace("late_attempt", thermostat=self.entity_id, want=list(self.desired or ()))
+        self._send()
 
     def _confirm(self) -> None:
         was_pending = self.phase is not Phase.CONFIRMED
@@ -362,6 +380,9 @@ class TrvWriter:
         if self._timer is not None:
             self._timer()
             self._timer = None
+        for cancel in self._late_timers:
+            cancel()
+        self._late_timers.clear()
 
     def _cancel_issue_timer(self) -> None:
         if self._issue_timer is not None:

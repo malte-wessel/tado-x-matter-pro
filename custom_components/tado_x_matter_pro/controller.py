@@ -239,7 +239,8 @@ class RoomController:
         self._unsubs: list[CALLBACK_TYPE] = []
         self._wakeup: CALLBACK_TYPE | None = None
         self._external_timer: CALLBACK_TYPE | None = None
-        self._pending_external: ExternalChange | None = None
+        # A change made outside the integration, waiting for the dial to settle: which thermostat.
+        self._pending_external: tuple[str, ExternalChange] | None = None
         self._views: dict[str, TrvView] = {}
         # Last available state of each input: an unavailable one keeps its last known state.
         self._known: dict[str, State] = {}
@@ -405,7 +406,12 @@ class RoomController:
             "desired": asdict(self.desired) if self.desired else None,
             "views": {eid: asdict(view) for eid, view in self._views.items()},
             "writers": {eid: writer.diagnostics() for eid, writer in self.writers.items()},
-            "pending_external": asdict(self._pending_external) if self._pending_external else None,
+            "pending_external": {
+                "thermostat": self._pending_external[0],
+                **asdict(self._pending_external[1]),
+            }
+            if self._pending_external
+            else None,
             "heating": {
                 eid: {
                     "demand_entity": self.demand.get(eid),
@@ -451,7 +457,9 @@ class RoomController:
                     self.hass, list(self.demand.values()), self._on_demand
                 )
             )
-        self._run(self._manual(self._changed_while_down()))
+        # Changes made while Home Assistant was down are no sign of the tado° app overwriting
+        # setpoints now: they all show up in the same second. Not reported to the house.
+        self._run(self._changed_while_down())
         # From now on a restart compares against what the thermostats have now, also those the
         # integration never had to write.
         for entity_id, view in self._views.items():
@@ -609,7 +617,7 @@ class RoomController:
             context_id=new_state.context.id if new_state else None,
             now=dt_util.utcnow(),
             known=(known[0], known[1]) if known else None,
-            recent=writer.recent(),
+            recent=self._recent_for(entity_id, old),
         )
         self.counters[f"report_{report}"] += 1
         if report is not Report.IGNORED:
@@ -629,7 +637,10 @@ class RoomController:
             writer.observe(new, resend=report in (Report.STALE, Report.RECONNECTED))
         if report is Report.EXTERNAL:
             _LOGGER.debug("%s: %s changed externally to %s", self.name, entity_id, new)
-            self._pending_external = ExternalChange(new.hvac_mode or "off", new.setpoint)
+            self._pending_external = (
+                entity_id,
+                ExternalChange(new.hvac_mode or "off", new.setpoint),
+            )
             if self._external_timer is not None:
                 self._external_timer()
             self._external_timer = async_call_later(
@@ -637,15 +648,52 @@ class RoomController:
             )
             self._notify()  # the thermostat's heating status may have changed
             return
+        pending = self._pending_external
+        if pending is not None and pending[0] == entity_id and matches(new, desired):
+            # The rest of a late delivery: the thermostat ends where the room wants it, so the
+            # report before was a step on the way, not someone's change.
+            self._cancel_pending_external("settled where wanted")
         # Readings changed, or a thermostat came back: decide again.
         self._run()
+
+    def _recent_for(
+        self, entity_id: str, old: TrvView | None
+    ) -> list[tuple[str | None, float | None]]:
+        """Values sent lately that may still be delivered late.
+
+        Back from a drop-out, the last command stored before a restart counts too: the writer's
+        own memory of it is gone with the restart.
+        """
+        recent = list(self.writers[entity_id].recent())
+        sent = self._stored.get("last_commanded", {}).get(entity_id)
+        if sent and (old is None or not old.available):
+            recent.append((sent[0], sent[1]))
+        return recent
+
+    def _cancel_pending_external(self, why: str) -> None:
+        if self._pending_external is not None:
+            self._trace("external_dropped", thermostat=self._pending_external[0], why=why)
+        self._pending_external = None
+        if self._external_timer is not None:
+            self._external_timer()
+            self._external_timer = None
 
     @callback
     def _fire_external(self, _now: datetime) -> None:
         self._external_timer = None
-        change, self._pending_external = self._pending_external, None
-        if change is not None:
-            self._run(self._manual(change))
+        pending, self._pending_external = self._pending_external, None
+        if pending is None:
+            return
+        entity_id, change = pending
+        desired = self.desired
+        if desired is not None and matches(
+            self._view(entity_id), (desired.hvac_mode, desired.temperature)
+        ):
+            # Meanwhile it shows what the room wants: no change to hold.
+            self._trace("external_dropped", thermostat=entity_id, why="shows what is wanted")
+            self._run()
+            return
+        self._run(self._manual(change))
 
     def _manual(self, change: ExternalChange | None) -> ExternalChange | None:
         """Tell the house about a change made outside the integration; pass it on."""

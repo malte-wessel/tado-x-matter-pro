@@ -228,3 +228,82 @@ async def test_a_call_that_hangs_blocks_neither_the_room_nor_other_rooms(
     kitchen.hang.set()
     await hass.async_block_till_done()
     assert setpoint(hass, KITCHEN_TRV) == ("heat", 24.0)  # the latest wins
+
+
+async def test_a_late_two_part_delivery_on_the_way_back_from_a_window_is_no_hold(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    kitchen = trvs[KITCHEN_TRV]
+    set_inputs(hass, kitchen_window="on")
+    await advance(hass, freezer, 30)  # off, setpoint stays 21
+    set_inputs(hass, ground_floor="off")  # the plan changes during the opening: 18 after it
+    await hass.async_block_till_done()
+    kitchen.queue_writes = True  # the Matter server holds what comes next
+    set_inputs(hass, kitchen_window="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)  # the wait ends: heat at 18, held
+    await advance(hass, freezer, 60)  # the retry, held too
+    await advance(hass, freezer, 60)  # long past "on the way"
+    kitchen.queue_writes = False
+    kitchen.deliver()  # mode first (heat at the old 21), then the setpoint (18)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5)
+    assert mode(hass, "kitchen_heating") == "eco"
+    assert setpoint(hass, KITCHEN_TRV) == ("heat", 18.0)
+    assert kitchen.writes[-1] != ("heat", 21.0)
+
+
+async def test_a_late_delivery_to_a_thermostat_unavailable_at_a_restart_is_no_hold(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    entry = await setup_house()
+    kitchen = trvs[KITCHEN_TRV]
+    kitchen.queue_writes = True
+    set_inputs(hass, ground_floor="off")  # 18 is sent and held
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    kitchen.drop_out(available=False)
+    kitchen.queue_writes = False
+    kitchen.deliver()  # 18 lands while Home Assistant is down and the thermostat away
+    set_inputs(hass, ground_floor="on")  # meanwhile the plan wants 21 again
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    kitchen.drop_out(available=True)  # back with 18: ours, not a change by someone
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5)
+    assert mode(hass, "kitchen_heating") == "schedule"
+    assert setpoint(hass, KITCHEN_TRV) == ("heat", 21.0)
+
+
+async def test_a_silent_thermostat_gets_two_late_attempts_after_the_writer_gave_up(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    kitchen = trvs[KITCHEN_TRV]
+    kitchen.lose_writes = True
+    before = len(kitchen.writes)
+    set_inputs(hass, ground_floor="off")
+    await hass.async_block_till_done()
+    for seconds in (60, 120, 420, 60):  # +1, +3, +10 min, then it gives up
+        await advance(hass, freezer, seconds)
+    assert len(kitchen.writes) - before == 4
+
+    await advance(hass, freezer, 30 * 60)
+    assert len(kitchen.writes) - before == 5
+    await advance(hass, freezer, 30 * 60)
+    assert len(kitchen.writes) - before == 6
+    await advance(hass, freezer, 3 * 3600)  # not a periodic tick: nothing more on its own
+    assert len(kitchen.writes) - before == 6

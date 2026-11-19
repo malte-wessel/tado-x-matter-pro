@@ -88,6 +88,11 @@ Initial release.
   `notify.send_message`, which needs a target; `set_override` no longer has an
   `until_next_change` field (without an end it lasts until the next plan change anyway) and shows
   its preset on the room thermostat.
+- A write the Matter server delivers late and in two parts (mode first) is no manual hold when the
+  thermostat ends where the room wants it; a late delivery to a thermostat that was unavailable at
+  a restart is recognised as the integration's own; changes made while Home Assistant was down no
+  longer raise the "overwrites setpoints" issue; a thermostat that stays silent after the writer
+  gave up gets two more attempts, after 30 and 60 minutes.
 - A new override or extend block ends a running boost; block temperatures are kept within the
   thermostats' 5–30 °C; the room form does not offer the integration's own room thermostats; the
   logbook notes windows only when they switch a room off or back on.

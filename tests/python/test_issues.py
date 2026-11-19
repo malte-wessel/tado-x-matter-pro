@@ -165,3 +165,19 @@ async def test_a_house_entity_that_is_gone_raises_an_issue(
     hass.states.async_set("input_boolean.gone", "off")
     await hass.async_block_till_done()
     assert issue(hass, "house_inputs_missing") is None
+
+
+async def test_changes_in_two_rooms_while_stopped_do_not_look_like_the_tado_app(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    entry = await setup_house()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    trvs["climate.kitchen_trv"].dial(23.0)
+    trvs["climate.bath_trv"].dial(22.0)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert issue(hass, "tado_overwriting") is None

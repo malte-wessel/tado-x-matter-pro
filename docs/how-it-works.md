@@ -220,14 +220,16 @@ Tado X thermostats talk over Thread, and Thread links drop out. So every write i
 
 - **Confirmed or sent again.** A write counts once the thermostat reports the new value. Until
   then it is sent again: a setpoint after 1, 3 and 10 minutes, *off* after 30 seconds and
-  2 minutes. Each thermostat has its own sender, so one that does not answer never delays the
+  2 minutes. After that it is sent whenever the thermostat reports or reconnects, and – for one
+  that stays silent – once more after 30 and after 60 minutes. Each thermostat has its own sender, so one that does not answer never delays the
   other thermostats of the room, other rooms, or the room thermostat's actions.
 - **Unavailable thermostats** are not written – Home Assistant would drop the call. When one comes
   back, it gets what it should have. If it comes back with a value that is neither what it had
   before nor anything the integration sent, someone turned it in the meantime: that becomes a hold.
 - **Late deliveries.** The Matter server can hold a write for a node it cannot reach and deliver it
   minutes later, after newer ones. A value the integration sent in the last 20 minutes that shows up
-  late is recognised as its own: the current setting is sent again, and no hold starts.
+  late is recognised as its own: the current setting is sent again, and no hold starts. A write
+  delivered in two parts, mode first, is no hold either when the thermostat ends where it should.
 - **Schedule edges and away changes are spread:** each room waits a random 0–45 seconds before it
   writes, so a house full of valves does not transmit in the same second. Windows, your own changes
   and the room's numbers are written at once.
