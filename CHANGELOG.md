@@ -49,6 +49,9 @@ Initial release.
   current plan temperature until a time), and the presets boost / comfort / eco / none on the
   room thermostat. The Mode sensor shows `timed` and `boost`, with `override_until` and
   `boost_until`. Store 1.4 keeps boosts and presets across restarts.
+- Logbook entries (English and German, by Home Assistant's language): manual holds, timed
+  overrides, a room switched off, back to the schedule, switched off for a window and back on,
+  boost and its end.
 - Back to the schedule: the action `tado_x_matter_pro.resume_schedule` (also with area, floor and
   label targets, which reach only the room thermostats), a *Resume schedule* button per room, and a
   house device with *Resume all rooms* and *Rooms off schedule* (the count, with the rooms and their

@@ -7,6 +7,8 @@ from typing import Final
 DOMAIN: Final = "tado_x_matter_pro"
 TITLE: Final = "Heating"
 SUBENTRY_ROOM: Final = "room"
+# Fired for what belongs in the logbook (logbook.py words it): data room, entity_id, kind, ...
+EVENT_ROOM: Final = f"{DOMAIN}_room"
 
 STORAGE_KEY: Final = DOMAIN
 # Major: breaking shape changes; minor: additive ones. Both migrate in store.py.

@@ -22,6 +22,8 @@ holds the design, the decisions and the phases.
 | `engine/external.py` | Classifies thermostat reports: ours, intermediate, converged, external. |
 | `engine/heating.py` | The heating / reached / off status from a thermostat's mode and demand; the room's action. |
 | `controller.py` | One room in Home Assistant: reads inputs, runs the engine, hands the result to the writers, stores state. |
+| `engine/log.py`, `logbook.py`, `messages.py` | Which changes are logbook entries; the logbook's wording in English and German. |
+| `services.py`, `button.py` | The actions (resume, boost, set override, extend block) and the resume buttons. |
 | `trv.py` | One writer per thermostat: sends what deviates, confirms, retries on a schedule, one call at a time, never blocks the room; the repair issue after 30 minutes unconfirmed. |
 | `store.py` | Persistence with versioned migrations. |
 | `config_flow.py` | House settings, options, the room subentry flow. |

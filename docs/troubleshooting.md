@@ -6,6 +6,11 @@ The room's [Mode sensor](entities.md#mode) says which rule decides right now, wh
 is, when the schedule switches next, and – after a window – when heating resumes. Most questions
 are answered there.
 
+The **logbook** (and each room thermostat's *Activity*) lists what happened to a room: a manual
+hold and what it held, a timed override, the room switched off, back to the schedule, switched off
+for a window and back on after it, a boost and its end – in English or German, following Home
+Assistant's language.
+
 For the reasons behind each decision, turn on debug logging for the integration: Settings → Devices
 & services → Tado X Matter Pro → three-dot menu → **Enable debug logging**. The log then shows, per
 room, every event (a thermostat changed externally, a hold, a mode change) and the decision that

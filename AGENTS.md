@@ -33,7 +33,7 @@ the decisions and the phases.
    `tests/fixtures/storage/` and a load test.
 5. **Strings go through `strings.json`** and the translation files (en is the source, de second).
    Logbook and notification texts cannot be translated by Home Assistant; they come from
-   `messages.py` by `hass.config.language` (create it with the first such text). Log messages and config errors stay English.
+   `messages.py` by `hass.config.language`. Log messages and config errors stay English.
 6. **Python style is ruff `ALL`** with the ignores in `pyproject.toml` (HA style: runtime imports, no
    copyright headers) and mypy strict. Every module starts with a one-line docstring.
 7. **Tests describe behaviour.** HA tests drive the real config entry (`MockConfigEntry`,

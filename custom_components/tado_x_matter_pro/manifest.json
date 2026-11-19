@@ -1,7 +1,7 @@
 {
   "domain": "tado_x_matter_pro",
   "name": "Tado X Matter Pro",
-  "after_dependencies": ["schedule"],
+  "after_dependencies": ["logbook", "schedule"],
   "codeowners": ["@malte-wessel"],
   "config_flow": true,
   "dependencies": [],

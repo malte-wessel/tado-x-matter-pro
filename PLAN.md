@@ -73,6 +73,7 @@ Not asked: each TRV's own temperature sensor (same device) and the device area (
 | `__init__.py` | `async_setup` (entity services), `async_setup_entry` (Store, one `RoomController` per subentry, start after HA started), update listener → reload, `async_remove_entry` deletes the store, `async_migrate_entry`. |
 | `config_flow.py` | Config flow, options flow (house), `RoomSubentryFlow` (user + reconfigure). |
 | `engine/model.py` | Dataclasses and enums: room config, room state, override, boost, window phase, TRV view, effects. |
+| `engine/log.py` | Which state changes are logbook entries. |
 | `engine/plan.py` | Priority ladder, plan key, next transitions from the weekly schedule. |
 | `engine/window.py` | Debounce state machine. |
 | `engine/room.py` | Reducer `step(state, inputs, event, now) -> (state, effects, next_wakeup)`. |
@@ -220,7 +221,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    Boost, `set_override`, `extend_block` and presets ✅ 2026-11-19: boost is a layer (window >
    boost > override > plan), ended by expiry, resume, a change by hand or preset none, not by plan
    changes; timed overrides survive plan changes; `until` is local and rolls to tomorrow; presets
-   comfort/eco are holds until the next change tagged with the preset. Store 1.4. Open: logbook.
+   comfort/eco are holds until the next change tagged with the preset. Store 1.4.
+   Logbook ✅ 2026-11-19: `engine/log.py` diffs the state per step; the controller fires
+   `tado_x_matter_pro_room`; `logbook.py` words it from `messages.py` (EN/DE) when shown.
    Diagnostics ✅ pulled forward 2026-10-27: house options (notify targets redacted) and per room
    inputs, decision, stored state, thermostat views and commands, report counters and a trace of
    the last 200 reports, decisions and writes; also per room device.

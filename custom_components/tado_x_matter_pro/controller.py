@@ -52,11 +52,14 @@ from .const import (
     DEFAULT_DEMAND_THRESHOLD,
     DEFAULT_FROST_TEMPERATURE,
     DEFAULT_OPEN_DELAY_SECONDS,
+    DOMAIN,
+    EVENT_ROOM,
     SECTION_BOOST,
     SECTION_WINDOW,
 )
 from .engine.external import Report, TrvView, classify
 from .engine.heating import Status, room_action, status as heating_status
+from .engine.log import entries as log_entries
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
 from .engine.room import (
     EndPreset,
@@ -540,6 +543,7 @@ class RoomController:
     @callback
     def _run(self, event: RoomEvent | None = None, *, plan_edge: bool = False) -> None:
         previous_key = self.state.plan_key
+        before = self.state
         self.inputs = self._read_inputs()
         result = step(self.state, self.inputs, self.config, dt_util.utcnow(), event)
         if event is not None:
@@ -553,6 +557,7 @@ class RoomController:
             )
         self.state = result.state
         self.desired = result.desired
+        self._log(before, isinstance(event, Resume))
         # Most runs are readings that change nothing: write to disk only when the state changed.
         stored = state_to_dict(self.state)
         if stored != self._stored.get("state"):
@@ -562,6 +567,26 @@ class RoomController:
         self._notify()
         spread = plan_edge and previous_key is not None and self.state.plan_key != previous_key
         self._deliver(random_delay() if spread else timedelta(0))
+
+    def _log(self, before: RoomState, resumed: bool) -> None:  # noqa: FBT001
+        """Fire an event for each logbook entry the step made (logbook.py words them)."""
+        found = log_entries(before, self.state, resumed=resumed)
+        if not found:
+            return
+        entity_id = er.async_get(self.hass).async_get_entity_id(
+            "climate", DOMAIN, f"{self.room_id}_climate"
+        )
+        for entry in found:
+            self.hass.bus.async_fire(
+                EVENT_ROOM,
+                {
+                    "room": self.name,
+                    "entity_id": entity_id,
+                    "kind": entry.kind,
+                    "temperature": entry.temperature,
+                    "until": entry.until.isoformat() if entry.until else None,
+                },
+            )
 
     def _schedule_wakeup(self, when: datetime | None) -> None:
         if self._wakeup is not None:
