@@ -87,7 +87,8 @@ System → Repairs:
 | --- | --- | --- |
 | *A window contact of … keeps bouncing* | 10 openings within an hour were shorter than the room's open delay. The room ignored them; the contact or the door probably needs a look. | After an hour without bouncing. |
 | *Window contact … is gone while open* | The contact has been unavailable for 30 minutes and last said *open*, so the room stays off. | When it reports again. |
-| *Something overwrites setpoints in several rooms* | Thermostats in two or more rooms were changed outside the integration within a minute – usually the tado° app's schedule, manual-control setting or open window detection ([Prepare the tado° app](installation.md#prepare-the-tado-app)). | With the next restart. |
+| *… uses entities that are gone* / *The house settings use entities that are gone* | An entity the room (or the house settings) names no longer exists or is disabled – usually renamed. Pick it again with *Change room* (or *Configure*). Checked 5 minutes after a start, and whenever entities are renamed or removed. | When the entity is back. |
+| *Something overwrites setpoints in several rooms* | Thermostats in two or more rooms were changed outside the integration within a few seconds – usually the tado° app's schedule, manual-control setting or open window detection ([Prepare the tado° app](installation.md#prepare-the-tado-app)). | With the next restart. |
 
 ## The entity ids look odd
 

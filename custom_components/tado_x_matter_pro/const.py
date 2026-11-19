@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "tado_x_matter_pro"
@@ -26,6 +27,10 @@ SECTION_REMINDER: Final = "window_reminder"
 CONF_OUTDOOR_SENSOR: Final = "outdoor_sensor"
 CONF_ONLY_BELOW: Final = "only_below"
 CONF_NOTIFY: Final = "notify"
+
+# After a start, inputs that have not reported yet keep the last decision this long, and missing
+# entities are not reported before it is over (integrations may still be loading).
+START_GRACE: Final = timedelta(minutes=5)
 
 DEFAULT_FROST_TEMPERATURE: Final = 7.0
 DEFAULT_DEMAND_THRESHOLD: Final = 3.0  # % of heating demand from which a thermostat heats

@@ -67,6 +67,7 @@ from .const import (
     SECTION_BOOST,
     SECTION_REMINDER,
     SECTION_WINDOW,
+    START_GRACE,
 )
 from .engine.external import Report, TrvView, classify, matches
 from .engine.forecast import HORIZON, Block, Forecast, forecast
@@ -86,6 +87,7 @@ from .engine.room import (
     StartBoost,
     step,
 )
+from .house import entity_missing
 from .messages import reminder
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
 from .trv import TrvWriter
@@ -97,9 +99,6 @@ EXTERNAL_COALESCE = timedelta(seconds=4)
 TOLERANCE = 0.05
 # Entries kept for diagnostics: reports, decisions and writes.
 TRACE_LENGTH = 200
-# After a start, inputs that have not reported yet keep the room's last decision this long; an
-# input still unknown after that (e.g. a deleted helper) counts as off.
-START_GRACE = timedelta(minutes=5)
 # Repair issues: a window contact bouncing this often within the engine's bounce window (an hour),
 # and a contact unavailable this long while it last said open (the room stays off meanwhile).
 CHATTER_BOUNCES = 10
@@ -245,7 +244,7 @@ class RoomController:
         # Last available state of each input: an unavailable one keeps its last known state.
         self._known: dict[str, State] = {}
         self._starting = False
-        self._issues: set[str] = set()
+        self._issues: dict[str, dict[str, str]] = {}  # raised issues and their placeholders
         self._contact_timers: dict[str, CALLBACK_TYPE] = {}
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
         self.counters: Counter[str] = Counter()
@@ -434,6 +433,10 @@ class RoomController:
         inputs = [self.schedule, *self.idle_sensors, *self.windows]
         inputs += [e for e in (self.room_sensor, self.outdoor_sensor) if e]
         self._unsubs.append(async_track_state_change_event(self.hass, inputs, self._on_input))
+        # A renamed, removed or disabled entity of the room: a repair issue.
+        self._unsubs.append(
+            self.hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, self._on_registry_updated)
+        )
         # Editing a schedule may change nothing in its state: only a report tells.
         self._unsubs.append(
             async_track_state_report_event(self.hass, [self.schedule], self._on_schedule_reported)
@@ -724,7 +727,23 @@ class RoomController:
         self._deliver(random_delay() if spread else timedelta(0))
 
     def _check_issues(self) -> None:
-        """Raise or clear the room's repair issues: bouncing contacts, contacts gone while open."""
+        """Raise or clear the room's repair issues.
+
+        Bouncing contacts, contacts gone while open, and – once integrations had time to load –
+        entities of the room that are gone (renamed, deleted or disabled).
+        """
+        missing = (
+            []
+            if self._starting
+            else [e for e in self._room_inputs() if entity_missing(self.hass, e)]
+        )
+        self._set_issue(
+            f"missing_{self.room_id}",
+            active=bool(missing),
+            key="inputs_missing",
+            room=self.name,
+            entities=", ".join(missing),
+        )
         bounces = len(self.state.bounces)
         self._set_issue(
             f"chatter_{self.room_id}",
@@ -753,6 +772,17 @@ class RoomController:
                     cancel()
                 self._set_issue(issue_id, active=False)
 
+    def _room_inputs(self) -> list[str]:
+        """Return every entity the room's settings name."""
+        extra = [e for e in (self.room_sensor,) if e]
+        return [*self.thermostats, self.schedule, *self.windows, *extra, *self.demand.values()]
+
+    @callback
+    def _on_registry_updated(self, event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+        ids = {event.data["entity_id"], event.data.get("old_entity_id")}
+        if not self._starting and ids & set(self._room_inputs()):
+            self._check_issues()
+
     @callback
     def _contact_gone(self, entity_id: str, _now: datetime) -> None:
         self._contact_timers.pop(entity_id, None)
@@ -767,8 +797,8 @@ class RoomController:
     def _set_issue(
         self, issue_id: str, *, active: bool, key: str = "", **placeholders: str
     ) -> None:
-        if active and issue_id not in self._issues:
-            self._issues.add(issue_id)
+        if active and self._issues.get(issue_id) != placeholders:  # new, or its text changed
+            self._issues[issue_id] = placeholders
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -779,7 +809,7 @@ class RoomController:
                 translation_placeholders=placeholders,
             )
         elif not active and issue_id in self._issues:
-            self._issues.discard(issue_id)
+            del self._issues[issue_id]
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _update_forecast(self) -> None:

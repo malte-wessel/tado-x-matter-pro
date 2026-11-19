@@ -58,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HeatingConfigEntry) -> b
     }
     store = HeatingStore(hass)
     await store.async_load(set(rooms_config))
-    house = House(hass)
+    house = House(hass, entry)
     rooms = {
         subentry_id: RoomController(
             hass, entry, subentry, store, on_manual_change=house.note_manual_change
@@ -72,8 +72,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HeatingConfigEntry) -> b
         # Thermostats, schedules and sensors of other integrations exist once HA has started.
         for room in rooms.values():
             await room.async_start()
+        house.async_start()
 
     entry.async_on_unload(async_at_started(hass, _start))
+    entry.async_on_unload(house.async_stop)
     for room in rooms.values():
         entry.async_on_unload(room.async_stop)
     # Options and rooms (subentries) change what exists: reload.

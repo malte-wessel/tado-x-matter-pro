@@ -343,7 +343,15 @@
     },
     "tado_overwriting": {
       "title": "Etwas überschreibt Sollwerte in mehreren Räumen",
-      "description": "Thermostate in {rooms} wurden innerhalb einer Minute außerhalb von Tado X Matter Pro geändert. Menschen tun das selten gleichzeitig; meist ist es der eigene Zeitplan der tado°-App, ihre Einstellung für manuelle Änderungen oder ihre Fenster-offen-Erkennung.\n\nIn der tado°-App: Zeitplan flach machen, manuelle Änderungen bis zur Aufhebung gelten lassen und die Fenster-offen-Erkennung ausschalten – siehe Installationsanleitung. Die Meldung verschwindet mit dem nächsten Neustart."
+      "description": "Thermostate in {rooms} wurden innerhalb weniger Sekunden außerhalb von Tado X Matter Pro geändert. Menschen tun das selten gleichzeitig; meist ist es der eigene Zeitplan der tado°-App, ihre Einstellung für manuelle Änderungen oder ihre Fenster-offen-Erkennung.\n\nIn der tado°-App: Zeitplan flach machen, manuelle Änderungen bis zur Aufhebung gelten lassen und die Fenster-offen-Erkennung ausschalten – siehe Installationsanleitung. Die Meldung verschwindet mit dem nächsten Neustart."
+    },
+    "inputs_missing": {
+      "title": "{room} nutzt Entitäten, die es nicht mehr gibt",
+      "description": "{room} nutzt Entitäten, die es nicht mehr gibt oder die deaktiviert sind: {entities}. Wahrscheinlich wurden sie umbenannt oder entfernt.\n\nÖffne „Raum ändern“ des Raums auf der Integrationsseite und wähle sie neu. Bis dahin fehlen sie {room} – ohne Zeitplan gilt Eco, ein fehlendes Thermostat wird nicht gesteuert."
+    },
+    "house_inputs_missing": {
+      "title": "Die Haus-Einstellungen nutzen Entitäten, die es nicht mehr gibt",
+      "description": "Die Haus-Einstellungen nutzen Entitäten, die es nicht mehr gibt oder die deaktiviert sind: {entities}. Wahrscheinlich wurden sie umbenannt oder entfernt.\n\nÖffne „Konfigurieren“ auf der Integrationsseite und wähle sie neu."
     }
   },
   "services": {

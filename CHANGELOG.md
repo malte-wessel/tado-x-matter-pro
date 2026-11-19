@@ -48,8 +48,9 @@ Initial release.
   below the house's outdoor temperature if set – a notification goes to the house's notify actions
   (English or German). Store 1.5.
 - Repair issues for a window contact that keeps bouncing (10 short openings within an hour), a
-  window contact gone for 30 minutes while it last said open, and setpoints changed outside the
-  integration in two or more rooms within a minute (likely the tado° app).
+  window contact gone for 30 minutes while it last said open, setpoints changed outside the
+  integration in two or more rooms within a few seconds (likely the tado° app), and entities a room
+  or the house settings name that are gone – renamed, removed or disabled.
 - Schedule edges and away changes are spread over a random 0–45 seconds per room.
 - Boost (`tado_x_matter_pro.boost`, house defaults 30 °C for 30 minutes, a layer that ends on
   resume or a change by hand), timed overrides (`set_override`: a temperature or the comfort/eco

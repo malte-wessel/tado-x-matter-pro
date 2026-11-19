@@ -166,7 +166,9 @@ ignored. Counters and a trace go to diagnostics.
 
 **Issues (Repairs)** (all ✅ 2026-11-19): TRV unconfirmed > 30 min (covers unavailable); a window
 contact unavailable > 30 min while it last said open; window sensor chatter (bounces per hour); Tado app
-likely overwriting setpoints (external changes in ≥ 2 rooms within 60 s).
+likely overwriting setpoints (external changes in ≥ 2 rooms within 10 s; was 60 s, which people
+walking from dial to dial could reach); entities a room or the house settings name that are gone
+(no state and not registered, or disabled), from 5 min after a start and on registry changes.
 
 ## Repository layout
 

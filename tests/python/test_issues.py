@@ -7,12 +7,12 @@ from datetime import timedelta
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.tado_x_matter_pro.const import DOMAIN
-from tests.python.conftest import FakeTrv, set_inputs
+from tests.python.conftest import HOUSE_OPTIONS, KITCHEN, FakeTrv, house_entry, set_inputs
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
 CONTACT = "binary_sensor.kitchen_window"
@@ -100,7 +100,7 @@ async def test_changes_in_two_rooms_within_a_minute_look_like_the_tado_app(
     assert not overwriting.is_persistent
 
 
-async def test_changes_in_two_rooms_far_apart_are_people(
+async def test_changes_in_two_rooms_seconds_apart_are_people(
     hass: HomeAssistant,
     setup_house: Setup,
     freezer: FrozenDateTimeFactory,
@@ -109,7 +109,59 @@ async def test_changes_in_two_rooms_far_apart_are_people(
     await setup_house()
     trvs["climate.kitchen_trv"].dial(23.0)
     await advance(hass, freezer, 4)
-    await advance(hass, freezer, 120)
+    await advance(hass, freezer, 20)  # walking from one dial to the next
     trvs["climate.bath_trv"].dial(22.0)
     await advance(hass, freezer, 4)
     assert issue(hass, "tado_overwriting") is None
+
+
+async def test_a_rooms_entity_that_is_gone_raises_an_issue_after_the_start(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    entry = house_entry({"Kitchen": {**KITCHEN, "schedule": "schedule.renamed_away"}})
+    await setup_house(entry)
+    kitchen = next(iter(entry.subentries))
+    assert issue(hass, f"missing_{kitchen}") is None  # integrations may still be loading
+    await advance(hass, freezer, 5 * 60)
+    missing = issue(hass, f"missing_{kitchen}")
+    assert missing is not None
+    assert missing.translation_placeholders == {
+        "room": "Kitchen",
+        "entities": "schedule.renamed_away",
+    }
+
+    hass.states.async_set("schedule.renamed_away", "on")  # it is back
+    await hass.async_block_till_done()
+    assert issue(hass, f"missing_{kitchen}") is None
+
+
+async def test_renaming_a_rooms_thermostat_raises_an_issue(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    entry = await setup_house()
+    bathroom = next(s.subentry_id for s in entry.subentries.values() if s.title == "Bathroom")
+    await advance(hass, freezer, 5 * 60)
+    er.async_get(hass).async_update_entity(
+        "climate.bath_tub_trv", new_entity_id="climate.tub_thermostat"
+    )
+    await hass.async_block_till_done()
+    missing = issue(hass, f"missing_{bathroom}")
+    assert missing is not None
+    assert missing.translation_placeholders == {
+        "room": "Bathroom",
+        "entities": "climate.bath_tub_trv",
+    }
+
+
+async def test_a_house_entity_that_is_gone_raises_an_issue(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    options = {**HOUSE_OPTIONS, "idle_sensors": ["input_boolean.away", "input_boolean.gone"]}
+    await setup_house(house_entry(options=options))
+    await advance(hass, freezer, 5 * 60)
+    missing = issue(hass, "house_inputs_missing")
+    assert missing is not None
+    assert missing.translation_placeholders == {"entities": "input_boolean.gone"}
+    hass.states.async_set("input_boolean.gone", "off")
+    await hass.async_block_till_done()
+    assert issue(hass, "house_inputs_missing") is None

@@ -343,7 +343,15 @@
     },
     "tado_overwriting": {
       "title": "Something overwrites setpoints in several rooms",
-      "description": "Thermostats in {rooms} were changed outside Tado X Matter Pro within a minute. People rarely do that at once; usually it is the tado° app's own schedule, its \"manual control\" setting or its open window detection.\n\nIn the tado° app: make the schedule flat, set manual changes to last until you cancel them, and switch off open window detection – see the installation guide. This message goes away with the next restart."
+      "description": "Thermostats in {rooms} were changed outside Tado X Matter Pro within a few seconds. People rarely do that at once; usually it is the tado° app's own schedule, its \"manual control\" setting or its open window detection.\n\nIn the tado° app: make the schedule flat, set manual changes to last until you cancel them, and switch off open window detection – see the installation guide. This message goes away with the next restart."
+    },
+    "inputs_missing": {
+      "title": "{room} uses entities that are gone",
+      "description": "{room} uses entities that no longer exist or are disabled: {entities}. Probably they were renamed or removed.\n\nOpen the room's \"Change room\" on the integration page and pick them again. Until then {room} misses them – a missing schedule means eco, a missing thermostat is not controlled."
+    },
+    "house_inputs_missing": {
+      "title": "The house settings use entities that are gone",
+      "description": "The house settings use entities that no longer exist or are disabled: {entities}. Probably they were renamed or removed.\n\nOpen \"Configure\" on the integration page and pick them again."
     }
   },
   "services": {
