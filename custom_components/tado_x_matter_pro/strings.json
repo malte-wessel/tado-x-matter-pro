@@ -155,7 +155,35 @@
         },
         "demand": {
           "title": "Heating demand",
-          "description": "Optional: per thermostat an entity that says how much it heats – a percentage (e.g. the heating power of a cloud integration) or an on/off value (e.g. a threshold helper on a pipe sensor). Tado X reports neither its valve nor its demand over Matter, so thermostats without one show no heating status.\n\n{thermostats}"
+          "description": "Optional: per thermostat an entity that says how much it heats – a percentage (e.g. the heating power of a cloud integration) or an on/off value (e.g. a threshold helper on a pipe sensor). Tado X reports neither its valve nor its demand over Matter, so thermostats without one show no heating status.",
+          "data": {
+            "thermostat_1": "{thermostat_1}",
+            "thermostat_2": "{thermostat_2}",
+            "thermostat_3": "{thermostat_3}",
+            "thermostat_4": "{thermostat_4}",
+            "thermostat_5": "{thermostat_5}",
+            "thermostat_6": "{thermostat_6}",
+            "thermostat_7": "{thermostat_7}",
+            "thermostat_8": "{thermostat_8}",
+            "thermostat_9": "{thermostat_9}",
+            "thermostat_10": "{thermostat_10}",
+            "thermostat_11": "{thermostat_11}",
+            "thermostat_12": "{thermostat_12}"
+          },
+          "data_description": {
+            "thermostat_1": "{thermostat_1_entity}",
+            "thermostat_2": "{thermostat_2_entity}",
+            "thermostat_3": "{thermostat_3_entity}",
+            "thermostat_4": "{thermostat_4_entity}",
+            "thermostat_5": "{thermostat_5_entity}",
+            "thermostat_6": "{thermostat_6_entity}",
+            "thermostat_7": "{thermostat_7_entity}",
+            "thermostat_8": "{thermostat_8_entity}",
+            "thermostat_9": "{thermostat_9_entity}",
+            "thermostat_10": "{thermostat_10_entity}",
+            "thermostat_11": "{thermostat_11_entity}",
+            "thermostat_12": "{thermostat_12_entity}"
+          }
         }
       },
       "error": {

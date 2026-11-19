@@ -231,6 +231,9 @@ class RoomSubentryFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Optionally, per thermostat, an entity that says how much it heats."""
         thermostats: list[str] = self._room[CONF_THERMOSTATS]
+        # Fields are thermostat_1, thermostat_2, …: fixed keys, so their labels can be translated
+        # strings that show the thermostat's name (placeholders) instead of its entity id.
+        fields = {f"thermostat_{i}": t for i, t in enumerate(thermostats, start=1)}
         errors: dict[str, str] = {}
         if user_input is None:
             stored = (
@@ -240,8 +243,9 @@ class RoomSubentryFlow(ConfigSubentryFlow):
             )
             current = {t: stored[t] for t in thermostats if t in stored}
         else:
-            current = {t: user_input[t] for t in thermostats if user_input.get(t)}
-            errors = self._validate_demand(current)
+            current = {fields[k]: v for k, v in user_input.items() if k in fields and v}
+            by_thermostat = {t: k for k, t in fields.items()}
+            errors = {by_thermostat[t]: e for t, e in self._validate_demand(current).items()}
             if not errors:
                 data = {**self._room, CONF_DEMAND: current}
                 if self._reconfiguring:
@@ -254,21 +258,22 @@ class RoomSubentryFlow(ConfigSubentryFlow):
                 return self.async_create_entry(title=self._title, data=data)
         schema = vol.Schema(
             {
-                vol.Optional(t, description={"suggested_value": current.get(t)}): EntitySelector(
+                vol.Optional(key, description={"suggested_value": current.get(t)}): EntitySelector(
                     EntitySelectorConfig(domain=["sensor", "binary_sensor"])
                 )
-                for t in thermostats
+                for key, t in fields.items()
             }
         )
-        names = "\n".join(
-            f"- {t}: {state.name}" if (state := self.hass.states.get(t)) else f"- {t}"
-            for t in thermostats
-        )
+        placeholders: dict[str, str] = {}
+        for key, t in fields.items():
+            state = self.hass.states.get(t)
+            placeholders[key] = state.name if state else t
+            placeholders[f"{key}_entity"] = t
         return self.async_show_form(
             step_id="demand",
             data_schema=schema,
             errors=errors,
-            description_placeholders={"thermostats": names},
+            description_placeholders=placeholders,
         )
 
     def _validate_demand(self, demand: Mapping[str, str]) -> dict[str, str]:

@@ -173,10 +173,7 @@ async def test_a_room_takes_a_demand_entity_per_thermostat(
             "schedule": "schedule.bathroom",
             "window": {},
         },
-        {
-            "climate.bath_trv": "sensor.bath_demand",
-            "climate.bath_tub_trv": "binary_sensor.tub_pipe_hot",
-        },
+        {"thermostat_1": "sensor.bath_demand", "thermostat_2": "binary_sensor.tub_pipe_hot"},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["demand"] == {
@@ -195,11 +192,11 @@ async def test_a_demand_sensor_must_report_a_number(
         hass,
         entry,
         {"thermostats": ["climate.kitchen_trv"], "schedule": "schedule.ground_floor", "window": {}},
-        {"climate.kitchen_trv": "sensor.kitchen_mood"},
+        {"thermostat_1": "sensor.kitchen_mood"},
     )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "demand"
-    assert result["errors"] == {"climate.kitchen_trv": "demand_not_numeric"}
+    assert result["errors"] == {"thermostat_1": "demand_not_numeric"}
 
 
 async def test_reconfigure_keeps_and_removes_demand_entities(
@@ -218,8 +215,13 @@ async def test_reconfigure_keeps_and_removes_demand_entities(
     assert result["step_id"] == "demand"
     assert result["data_schema"] is not None
     schema = result["data_schema"].schema
-    key = next(k for k in schema if k == "climate.kitchen_trv")
+    key = next(k for k in schema if k == "thermostat_1")
     assert key.description == {"suggested_value": "sensor.kitchen_demand"}
+    # labelled with the thermostat's name, its entity id below
+    assert result["description_placeholders"] == {
+        "thermostat_1": "kitchen_trv",
+        "thermostat_1_entity": "climate.kitchen_trv",
+    }
 
     assert hass.states.get("sensor.kitchen_heating_kitchen_trv_heating") is not None
 
