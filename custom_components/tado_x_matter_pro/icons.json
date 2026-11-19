@@ -1,0 +1,72 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "window_overdue": {
+        "default": "mdi:window-open-variant"
+      }
+    },
+    "button": {
+      "resume": {
+        "default": "mdi:calendar-sync"
+      },
+      "resume_all": {
+        "default": "mdi:calendar-sync"
+      }
+    },
+    "number": {
+      "comfort_temperature": {
+        "default": "mdi:sun-thermometer"
+      },
+      "eco_temperature": {
+        "default": "mdi:leaf"
+      }
+    },
+    "sensor": {
+      "mode": {
+        "default": "mdi:thermostat",
+        "state": {
+          "schedule": "mdi:calendar-clock",
+          "idle": "mdi:leaf",
+          "manual": "mdi:hand-back-right",
+          "timed": "mdi:timer-outline",
+          "boost": "mdi:rocket-launch",
+          "window": "mdi:window-open-variant",
+          "waiting": "mdi:timer-sand",
+          "off": "mdi:power",
+          "frost": "mdi:snowflake-thermometer"
+        }
+      },
+      "next_change": {
+        "default": "mdi:clock-end"
+      },
+      "back_on": {
+        "default": "mdi:timer-sand"
+      },
+      "thermostat_status": {
+        "default": "mdi:radiator",
+        "state": {
+          "heating": "mdi:radiator",
+          "reached": "mdi:radiator-disabled",
+          "off": "mdi:radiator-off"
+        }
+      },
+      "rooms_off_schedule": {
+        "default": "mdi:calendar-remove"
+      }
+    }
+  },
+  "services": {
+    "resume_schedule": {
+      "service": "mdi:calendar-sync"
+    },
+    "boost": {
+      "service": "mdi:rocket-launch"
+    },
+    "set_override": {
+      "service": "mdi:timer-outline"
+    },
+    "extend_block": {
+      "service": "mdi:clock-plus-outline"
+    }
+  }
+}

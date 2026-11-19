@@ -255,7 +255,7 @@
         }
       },
       "thermostat_status": {
-        "name": "{thermostat} Heizbetrieb",
+        "name": "{thermostat} Heizstatus",
         "state": {
           "heating": "Heizt",
           "reached": "Erreicht",

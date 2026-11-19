@@ -136,7 +136,7 @@ windows or doors have it. The same time is the Mode sensor's `resume_at` attribu
 ## Heating status per thermostat
 
 `sensor.<area>_heating_<thermostat name>_heating` – one per thermostat of the room, on the room's
-device, named after the thermostat (*Thermostat Kitchen heating*, in German *… Heizbetrieb*).
+device, named after the thermostat (*Thermostat Kitchen heating*, in German *… Heizstatus*).
 
 | State | English | German | Meaning |
 | --- | --- | --- | --- |

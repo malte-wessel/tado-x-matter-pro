@@ -14,6 +14,8 @@ Initial release.
   over Matter. Thermostats with one get a heating status (heating / reached / off, heating from a
   house-wide threshold, default 3 %); the room thermostat shows the most active one as its
   action.
+- Icons per state for the heating status and the Mode sensor (and icons for the other entities
+  and the actions); the German name of the heating status is "… Heizstatus".
 - Documentation in `docs/` (including Matter/Thread advice in the installation guide): installation, configuration, how it works, entities, heating status,
   dashboards, automations, migrating, troubleshooting, development.
 - The room thermostat stays *off* while frost protection heats a room that was switched off.
