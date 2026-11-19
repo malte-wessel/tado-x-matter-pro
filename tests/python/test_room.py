@@ -332,7 +332,7 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
     by_room: dict[str | None, set[str]] = {}
     for entity in entities:
         by_room.setdefault(entity.config_subentry_id, set()).add(entity.entity_id)
-    assert len(by_room) == 2
+    assert len(by_room) == 3  # two rooms, and the house (no subentry)
     kitchen = next(ids for ids in by_room.values() if "climate.kitchen_heating" in ids)
     assert kitchen == {
         "climate.kitchen_heating",
@@ -341,6 +341,11 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
         "number.kitchen_heating_eco_temperature",
         "binary_sensor.kitchen_heating_window_open",
         "sensor.kitchen_heating_back_on",
+        "button.kitchen_heating_resume_schedule",
+    }
+    assert by_room[None] == {
+        "button.heating_resume_all_rooms",
+        "sensor.heating_rooms_off_schedule",
     }
     climate = registry.async_get("climate.kitchen_heating")
     assert climate is not None

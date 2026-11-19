@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -15,7 +16,7 @@ from .const import DOMAIN
 from .controller import RoomController
 from .engine.heating import Status
 from .engine.model import Mode
-from .entity import RoomEntity
+from .entity import HouseEntity, RoomEntity
 
 
 async def async_setup_entry(
@@ -48,6 +49,7 @@ async def async_setup_entry(
             if unique_id.startswith(f"{room_id}_status_") and unique_id not in keep:
                 registry.async_remove(registry_entry.entity_id)
         async_add_entities([*entities, *statuses], config_subentry_id=room_id)
+    async_add_entities([RoomsOffSchedule(entry, entry.runtime_data.rooms.values())])
 
 
 def _thermostat_key(hass: HomeAssistant, thermostat: str) -> str:
@@ -163,4 +165,36 @@ class ThermostatStatus(RoomEntity, SensorEntity):
         return {
             "thermostat": self.thermostat,
             "demand": self.room.demand_value(self.thermostat),
+        }
+
+
+class RoomsOffSchedule(HouseEntity, SensorEntity):
+    """How many rooms "resume all" would change: holds, overrides, rooms switched off."""
+
+    _attr_translation_key = "rooms_off_schedule"
+    _attr_native_unit_of_measurement = "rooms"
+
+    def __init__(self, entry: HeatingConfigEntry, rooms: Iterable[RoomController]) -> None:
+        """Create the house's count."""
+        super().__init__(entry, rooms, "rooms_off_schedule")
+
+    @property
+    def available(self) -> bool:
+        """Available once the rooms have decided."""
+        return all(room.desired is not None for room in self.rooms)
+
+    @property
+    def native_value(self) -> int:
+        """The number of rooms off their schedule."""
+        return sum(room.off_schedule for room in self.rooms)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Those rooms, each with its mode."""
+        return {
+            "rooms": {
+                room.name: str(room.desired.mode)
+                for room in self.rooms
+                if room.off_schedule and room.desired is not None
+            }
         }

@@ -120,3 +120,7 @@ class RoomThermostat(RoomEntity, ClimateEntity):
     async def async_turn_off(self) -> None:
         """Switch the room off."""
         self.room.set_mode("off")
+
+    async def async_resume_schedule(self) -> None:
+        """Back to the schedule; returns at once, the thermostats are written in the background."""
+        self.room.resume()

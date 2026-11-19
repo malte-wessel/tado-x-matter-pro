@@ -54,6 +54,25 @@ data:
 ## Back to the plan
 
 ```yaml
+action: tado_x_matter_pro.resume_schedule
+target:
+  entity_id: climate.living_room_heating
+```
+
+It ends holds and a room switched off, and skips the wait after a window. Its targets can be areas,
+floors or labels – they reach only the room thermostats – and `entity_id: all` resumes every room,
+like the house's *Resume all rooms* button:
+
+```yaml
+action: tado_x_matter_pro.resume_schedule
+target:
+  floor_id: first_floor
+```
+
+`climate.set_hvac_mode` with `auto` (or `climate.turn_on`) also ends holds but keeps the wait after
+a window:
+
+```yaml
 action: climate.set_hvac_mode
 target:
   entity_id: climate.living_room_heating
@@ -61,8 +80,8 @@ data:
   hvac_mode: auto
 ```
 
-`climate.turn_on` does the same. For several rooms at once, put a label (e.g. *Heating rooms*) on
-the room thermostats and target the label:
+For several rooms at once with `climate.set_hvac_mode`, put a label (e.g. *Heating rooms*) on the
+room thermostats and target the label:
 
 ```yaml
 action: climate.set_hvac_mode

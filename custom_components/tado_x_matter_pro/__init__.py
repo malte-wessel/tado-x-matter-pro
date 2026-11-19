@@ -15,12 +15,19 @@ from homeassistant.helpers.typing import ConfigType
 from .config_flow import TadoXMatterProConfigFlow
 from .const import DOMAIN, SUBENTRY_ROOM
 from .controller import RoomController
+from .services import async_setup_services
 from .store import HeatingStore
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.NUMBER, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.CLIMATE,
+    Platform.NUMBER,
+    Platform.SENSOR,
+]
 
 
 @dataclass
@@ -35,7 +42,8 @@ type HeatingConfigEntry = ConfigEntry[HeatingData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the integration once per run (entity services follow in phase 4)."""
+    """Set up the integration once per run: its actions on the room thermostats."""
+    async_setup_services(hass)
     return True
 
 

@@ -11,6 +11,14 @@ Every room gets one device with these entities:
 | [Window open](#window-open) | `binary_sensor.kitchen_heating_window_open` | if the room has windows or doors |
 | [Back on](#back-on) | `sensor.kitchen_heating_back_on` | if the room has windows or doors |
 | [*Thermostat* heating](#heating-status-per-thermostat) | `sensor.kitchen_heating_thermostat_kitchen_heating` | per thermostat with a heating demand entity |
+| [Resume schedule](#resume-schedule) | `button.kitchen_heating_resume_schedule` | always |
+
+The house gets one more device, **Heating** (no area), with what concerns all rooms:
+
+| Entity | Id | Meaning |
+| --- | --- | --- |
+| [Resume all rooms](#the-house) | `button.heating_resume_all_rooms` | Every room back to its schedule. |
+| [Rooms off schedule](#the-house) | `sensor.heating_rooms_off_schedule` | How many rooms *Resume all rooms* would change. |
 
 ## Entity ids and names
 
@@ -91,6 +99,20 @@ resumes after the room's windows and doors were closed: the closing time plus th
 after* delay. Set only while that wait runs (Mode *waiting*); empty while a window is still open and
 otherwise. Cards show timestamps as relative time, so a tile reads *in 4 minutes*. Only rooms with
 windows or doors have it. The same time is the Mode sensor's `resume_at` attribute.
+
+## Resume schedule
+
+`button.<area>_heating_resume_schedule` – the room back to its schedule; the same as the action
+`tado_x_matter_pro.resume_schedule` (see [Back to the schedule](how-it-works.md#back-to-the-schedule)).
+
+## The house
+
+- `button.heating_resume_all_rooms` – every room back to its schedule at once.
+- `sensor.heating_rooms_off_schedule` – the number of rooms where something other than the plan
+  decides: a manual hold or a room switched off (later also boost and timed overrides) – exactly
+  the rooms *Resume all rooms* would change. Attribute `rooms`: those rooms by name, each with its
+  [mode](#mode), e.g. `{"Kitchen": "manual"}`. A dashboard badge can show the sensor while it is
+  above 0 and press the button on tap.
 
 ## Heating status per thermostat
 

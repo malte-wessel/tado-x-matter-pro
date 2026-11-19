@@ -214,6 +214,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    tests; the real `schedule` component with block data; time travel. Done when every behaviour of
    the ladder is reproduced against HA and a reload makes no writes.
 5. **Commands.** Services, presets, buttons, logbook (EN/DE), diagnostics. Tests include area targets.
+   Resume ✅ 2026-11-19: `resume_schedule` (platform entity service, area/floor/label targets reach
+   only the room climates), a button per room, a house device ("Heating") with *Resume all rooms*
+   and *Rooms off schedule* (count + rooms with their modes). Returns at once.
    Diagnostics ✅ pulled forward 2026-10-27: house options (notify targets redacted) and per room
    inputs, decision, stored state, thermostat views and commands, report counters and a trace of
    the last 200 reports, decisions and writes; also per room device.

@@ -236,11 +236,30 @@
       },
       "back_on": {
         "name": "Wieder an"
+      },
+      "rooms_off_schedule": {
+        "name": "Räume abweichend vom Zeitplan",
+        "state_attributes": {
+          "rooms": {
+            "name": "Räume"
+          }
+        }
+      }
+    },
+    "button": {
+      "resume": {
+        "name": "Zurück zum Zeitplan"
+      },
+      "resume_all": {
+        "name": "Alle Räume zurück zum Zeitplan"
       }
     }
   },
   "device": {
     "room": {
+      "name": "Heizung"
+    },
+    "house": {
       "name": "Heizung"
     }
   },
@@ -248,6 +267,12 @@
     "thermostat_unconfirmed": {
       "title": "{thermostat} übernimmt die Einstellung nicht",
       "description": "Der Raum {room} hat {thermostat} vor mehr als 30 Minuten eine neue Einstellung geschickt, und das Thermostat hat sie nicht zurückgemeldet. Wahrscheinlich ist es im Thread-Netz schlecht erreichbar, oder die Batterien sind schwach.\n\nDie Integration sendet die Einstellung erneut, sobald sich das Thermostat wieder meldet; diese Meldung verschwindet, sobald es bestätigt."
+    }
+  },
+  "services": {
+    "resume_schedule": {
+      "name": "Zurück zum Zeitplan",
+      "description": "Zurück zum Zeitplan: beendet manuelle Änderungen, zeitlich begrenzte Vorgaben, Boost und einen ausgeschalteten Raum und überspringt die Wartezeit nach einem geschlossenen Fenster. Ein offenes Fenster hält den Raum weiter aus. Kehrt sofort zurück; die Thermostate werden im Hintergrund geschrieben."
     }
   }
 }

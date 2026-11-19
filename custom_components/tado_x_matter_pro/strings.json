@@ -236,11 +236,30 @@
       },
       "back_on": {
         "name": "Back on"
+      },
+      "rooms_off_schedule": {
+        "name": "Rooms off schedule",
+        "state_attributes": {
+          "rooms": {
+            "name": "Rooms"
+          }
+        }
+      }
+    },
+    "button": {
+      "resume": {
+        "name": "Resume schedule"
+      },
+      "resume_all": {
+        "name": "Resume all rooms"
       }
     }
   },
   "device": {
     "room": {
+      "name": "Heating"
+    },
+    "house": {
       "name": "Heating"
     }
   },
@@ -248,6 +267,12 @@
     "thermostat_unconfirmed": {
       "title": "{thermostat} does not take its setting",
       "description": "The room {room} sent {thermostat} a new setting more than 30 minutes ago, and the thermostat has not reported it back. It is probably hard to reach in the Thread network, or its batteries are low.\n\nThe integration sends the setting again when the thermostat reconnects or reports; this message goes away once it confirms."
+    }
+  },
+  "services": {
+    "resume_schedule": {
+      "name": "Resume schedule",
+      "description": "Back to the schedule: ends manual holds, timed overrides, boost and a room switched off, and skips the wait after a window closed. An open window still keeps the room off. Returns at once; the thermostats are written in the background."
     }
   }
 }

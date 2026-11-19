@@ -43,6 +43,11 @@ Initial release.
   by the integration earlier is re-sent instead of becoming a hold, while a thermostat that returns
   with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
 - Schedule edges and away changes are spread over a random 0–45 seconds per room.
+- Back to the schedule: the action `tado_x_matter_pro.resume_schedule` (also with area, floor and
+  label targets, which reach only the room thermostats), a *Resume schedule* button per room, and a
+  house device with *Resume all rooms* and *Rooms off schedule* (the count, with the rooms and their
+  modes). They end holds and a room switched off, skip the wait after a window – an open window
+  still keeps the room off – and return at once.
 - A dial turned back to the previous value right after the integration's write is now a hold.
 - Changing a room's comfort or eco temperature ends its manual hold – either number, also the one
   the plan does not use at the moment.

@@ -1,7 +1,10 @@
-"""Base entity: one device per room, updated after every decision of its controller."""
+"""Base entities: one device per room, and one for the house with what concerns all rooms."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 
@@ -43,3 +46,27 @@ class RoomEntity(Entity):
     async def async_added_to_hass(self) -> None:
         """Follow the room's decisions."""
         self.async_on_remove(self.room.add_listener(self.async_write_ha_state))
+
+
+class HouseEntity(Entity):
+    """An entity of the house device, updated after every decision of any room."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(self, entry: ConfigEntry, rooms: Iterable[RoomController], key: str) -> None:
+        """Attach the entity to the house device."""
+        self.rooms = list(rooms)
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            manufacturer="Tado X Matter Pro",
+            model="House",
+            entry_type=DeviceEntryType.SERVICE,
+            translation_key="house",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Follow every room's decisions."""
+        for room in self.rooms:
+            self.async_on_remove(room.add_listener(self.async_write_ha_state))

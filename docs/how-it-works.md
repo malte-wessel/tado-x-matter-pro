@@ -102,6 +102,21 @@ Its *current temperature* is the room sensor (or the thermostats' mean). Its *ac
 while all thermostats are off; whether it heats is known only from
 [heating demand entities](heating-status.md).
 
+## Back to the schedule
+
+The action `tado_x_matter_pro.resume_schedule` (targets: room thermostats, or areas, floors and
+labels – they reach only the room thermostats), a room's *Resume schedule* button, and the house's
+*Resume all rooms* button all do the same:
+
+- a manual hold ends, and a room that was switched off follows its plan again,
+- the wait after a window closed is skipped: the plan applies at once,
+- a window that is open right now still keeps the room off; when it closes, the plan applies after
+  the close delay – not a setting from before.
+
+They return at once; the thermostats are written in the background, so a thermostat that does not
+answer never holds up other rooms or a second tap. Mode **auto** on the room thermostat also ends
+holds, but keeps the wait after a window.
+
 ## Windows
 
 Each room has an **open delay** (default 30 s) and a **close delay** (default 5 min):

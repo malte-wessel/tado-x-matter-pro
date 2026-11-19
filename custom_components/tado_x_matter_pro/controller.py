@@ -210,6 +210,11 @@ class RoomController:
         )
 
     @property
+    def off_schedule(self) -> bool:
+        """Whether something other than the plan decides: what "resume" would end."""
+        return self.state.override is not None
+
+    @property
     def action(self) -> Status | None:
         """The room's status: off, heating if any thermostat heats, reached if all are known."""
         return room_action([self.status(eid) for eid in self.thermostats])

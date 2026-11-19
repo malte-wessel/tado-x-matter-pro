@@ -1,0 +1,5 @@
+resume_schedule:
+  target:
+    entity:
+      integration: tado_x_matter_pro
+      domain: climate
