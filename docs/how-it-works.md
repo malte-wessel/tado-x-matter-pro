@@ -162,6 +162,14 @@ thermostats  heat      │ off                                 │ heat (plan or
   made before the window opened. If the plan changed while the window was open, the new plan
   applies.
 
+### Reminder
+
+If the room's *Remind after* is not 0 (default 30 minutes), a window that has kept the room off that
+long turns on *Window open too long* and – once per opening – sends a notification to the house's
+*Notify* actions (title *Window open*, "Kitchen: a window has been open for 30 minutes."; German if
+Home Assistant is). With an outdoor sensor and *Only below* set, the notification waits until it is
+colder outside than that.
+
 ### A dial turned while the window is open
 
 If someone turns a thermostat up while the room is off because of a window, that is taken as a

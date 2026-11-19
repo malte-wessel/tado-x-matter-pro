@@ -23,7 +23,7 @@
             }
           },
           "window_reminder": {
-            "name": "Fenster-Erinnerung (geplant)",
+            "name": "Fenster-Erinnerung",
             "data": {
               "outdoor_sensor": "Außentemperatur",
               "only_below": "Nur unter",
@@ -65,7 +65,7 @@
             }
           },
           "window_reminder": {
-            "name": "Fenster-Erinnerung (geplant)",
+            "name": "Fenster-Erinnerung",
             "data": {
               "outdoor_sensor": "Außentemperatur",
               "only_below": "Nur unter",
@@ -111,7 +111,7 @@
               "data": {
                 "open_delay": "Ausschalten nach",
                 "close_delay": "Wieder an nach",
-                "remind_after": "Erinnern nach (Minuten, geplant)"
+                "remind_after": "Erinnern nach (Minuten)"
               },
               "data_description": {
                 "open_delay": "So lange muss ein Fenster offen sein, bevor der Raum ausschaltet. Kürzeres Öffnen wird ignoriert.",
@@ -143,7 +143,7 @@
               "data": {
                 "open_delay": "Ausschalten nach",
                 "close_delay": "Wieder an nach",
-                "remind_after": "Erinnern nach (Minuten, geplant)"
+                "remind_after": "Erinnern nach (Minuten)"
               },
               "data_description": {
                 "open_delay": "So lange muss ein Fenster offen sein, bevor der Raum ausschaltet. Kürzeres Öffnen wird ignoriert.",
@@ -172,6 +172,9 @@
     "binary_sensor": {
       "window_open": {
         "name": "Fenster offen"
+      },
+      "window_overdue": {
+        "name": "Fenster zu lange offen"
       }
     },
     "number": {

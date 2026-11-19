@@ -45,6 +45,8 @@ class StateDict(TypedDict):
     plan_key: list[Any] | None
     frost_active: bool
     bounces: list[str]
+    window_open_since: str | None
+    reminded: bool
 
 
 class RoomDict(TypedDict):
@@ -94,6 +96,8 @@ def state_to_dict(state: RoomState) -> StateDict:
         "plan_key": list(state.plan_key) if state.plan_key is not None else None,
         "frost_active": state.frost_active,
         "bounces": [t.isoformat() for t in state.bounces],
+        "window_open_since": _iso(state.window_open_since),
+        "reminded": state.reminded,
     }
 
 
@@ -124,6 +128,8 @@ def state_from_dict(data: StateDict | None) -> RoomState:
         plan_key=(key[0], key[1], key[2], key[3]) if key else None,
         frost_active=data.get("frost_active", False),
         bounces=[datetime.fromisoformat(t) for t in data.get("bounces", [])],
+        window_open_since=_dt(data.get("window_open_since")),
+        reminded=data.get("reminded", False),
     )
 
 
@@ -153,6 +159,12 @@ class _Storage(Store[StoreData]):
                     state.setdefault("boost", None)
                     if state.get("override") is not None:
                         state["override"].setdefault("preset", None)
+        if old_major_version == 1 and old_minor_version < 5:
+            # 1.5: since when a window keeps the room off, and whether its reminder went out
+            for room in rooms.values():
+                if (state := room.get("state")) is not None:
+                    state.setdefault("window_open_since", None)
+                    state.setdefault("reminded", False)
         return {"rooms": rooms}
 
 

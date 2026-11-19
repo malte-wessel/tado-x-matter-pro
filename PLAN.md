@@ -234,6 +234,9 @@ Each phase ends green on `scripts/check.sh` and with a changelog line; nothing s
    the subentry's second step, the house's threshold). It replaced a trend-based inference
    (derivative port, tuned rule, recorder seeding, replay fixtures), which was removed: see Findings.
 7. **Extras.** Frost guard, window reminder and notify, issues. Release 0.1.0-beta.1.
+   Window reminder ✅ 2026-11-19 (engine: `window_open_since`, `reminded`, overdue in the
+   decision, wake-up at the due time; outdoor condition; notification via the house's notify
+   actions from `messages.py`; *Window open too long* sensor; store 1.5). Issues ✅ (see above).
 8. **Real-world rollout.** One room first next to the existing setup, then all rooms, then the old
    automations and helpers go. Done after one week without regressions.
 

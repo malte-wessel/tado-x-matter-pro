@@ -340,6 +340,7 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
         "number.kitchen_heating_comfort_temperature",
         "number.kitchen_heating_eco_temperature",
         "binary_sensor.kitchen_heating_window_open",
+        "binary_sensor.kitchen_heating_window_open_too_long",
         "sensor.kitchen_heating_back_on",
         "button.kitchen_heating_resume_schedule",
         "sensor.kitchen_heating_next_change",

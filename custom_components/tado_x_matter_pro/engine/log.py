@@ -21,6 +21,7 @@ class Kind(StrEnum):
     WINDOW_ON = "window_on"
     BOOST = "boost"
     BOOST_ENDED = "boost_ended"
+    WINDOW_REMINDER = "window_reminder"  # open too long: also a notification
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +52,8 @@ def entries(before: RoomState, after: RoomState, *, resumed: bool) -> list[Entry
         if _key(before.override) != _key(after.override):
             found.extend(_override(before.override, after.override))
     found.extend(_window(before, after))
+    if after.reminded and not before.reminded:
+        found.append(Entry(Kind.WINDOW_REMINDER))
     return found
 
 

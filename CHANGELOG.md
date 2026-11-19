@@ -42,6 +42,10 @@ Initial release.
   Unavailable thermostats get the setting when they return; a value that appears late and was sent
   by the integration earlier is re-sent instead of becoming a hold, while a thermostat that returns
   with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
+- Window reminder: once a window has kept a room off for the room's *Remind after* minutes
+  (default 30, 0 = off), a *Window open too long* sensor turns on and – once per opening, and only
+  below the house's outdoor temperature if set – a notification goes to the house's notify actions
+  (English or German). Store 1.5.
 - Repair issues for a window contact that keeps bouncing (10 short openings within an hour), a
   window contact gone for 30 minutes while it last said open, and setpoints changed outside the
   integration in two or more rooms within a minute (likely the tado° app).

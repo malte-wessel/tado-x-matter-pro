@@ -332,3 +332,37 @@ def test_preset_none_ends_a_boost_and_a_presets_hold_but_not_other_holds() -> No
     room.run(SetTemperature(23.0))
     room.run(EndPreset())
     assert (room.desired.temperature, room.desired.mode) == (23.0, Mode.MANUAL)
+
+
+REMIND = replace(CONFIG, remind_after=timedelta(minutes=30), remind_below=12.0)
+
+
+def test_a_window_open_too_long_is_reminded_once_per_opening() -> None:
+    inputs = replace(BLOCK, window_open=True, outdoor_temperature=5.0)
+    state = step(RoomState(), inputs, REMIND, T0).state
+    result = step(state, inputs, REMIND, at(0.5))  # open: off
+    assert result.next_wakeup == at(30.5)
+    result = step(result.state, inputs, REMIND, at(30.5))
+    assert result.desired.window_overdue
+    assert result.state.reminded
+    result = step(result.state, replace(inputs, window_open=False), REMIND, at(31))
+    assert not result.desired.window_overdue
+    assert not result.state.reminded  # a new opening is reminded again
+
+
+def test_no_reminder_while_it_is_warm_outside_but_still_overdue() -> None:
+    warm = replace(BLOCK, window_open=True, outdoor_temperature=15.0)
+    state = step(RoomState(), warm, REMIND, T0).state
+    result = step(step(state, warm, REMIND, at(0.5)).state, warm, REMIND, at(30.5))
+    assert result.desired.window_overdue
+    assert not result.state.reminded
+    colder = step(result.state, replace(warm, outdoor_temperature=10.0), REMIND, at(40))
+    assert colder.state.reminded
+
+
+def test_no_reminder_without_a_reminder_time() -> None:
+    inputs = replace(BLOCK, window_open=True)
+    state = step(RoomState(), inputs, CONFIG, T0).state
+    result = step(step(state, inputs, CONFIG, at(0.5)).state, inputs, CONFIG, at(600))
+    assert not result.desired.window_overdue
+    assert not result.state.reminded

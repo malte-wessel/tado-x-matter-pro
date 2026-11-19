@@ -10,6 +10,7 @@ Every room gets one device with these entities:
 | [Comfort temperature](#numbers) | `number.kitchen_heating_comfort_temperature` | always |
 | [Eco temperature](#numbers) | `number.kitchen_heating_eco_temperature` | always |
 | [Window open](#window-open) | `binary_sensor.kitchen_heating_window_open` | if the room has windows or doors |
+| [Window open too long](#window-open-too-long) | `binary_sensor.kitchen_heating_window_open_too_long` | if the room has windows or doors and *Remind after* is not 0 |
 | [Back on](#back-on) | `sensor.kitchen_heating_back_on` | if the room has windows or doors |
 | [*Thermostat* heating](#heating-status-per-thermostat) | `sensor.kitchen_heating_thermostat_kitchen_heating` | per thermostat with a heating demand entity |
 | [Resume schedule](#resume-schedule) | `button.kitchen_heating_resume_schedule` | always |
@@ -102,6 +103,13 @@ Changing a number applies at once and counts as a plan change: it ends a manual 
 `binary_sensor.<area>_heating_window_open` (device class *window*) – on while a window or door of
 the room has been open for longer than the open delay. Off during short openings and during the wait after closing (see the Mode sensor for that). Only
 rooms with windows or doors have it.
+
+## Window open too long
+
+`binary_sensor.<area>_heating_window_open_too_long` (device class *problem*; German *Fenster zu
+lange offen*) – on once a window has kept the room off for the room's *Remind after* minutes, until
+it is closed. It turns on whatever the outdoor temperature; only the notification waits for the
+cold.
 
 ## Back on
 

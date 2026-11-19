@@ -46,7 +46,11 @@ from .const import (
     CONF_DEMAND_THRESHOLD,
     CONF_FROST_TEMPERATURE,
     CONF_IDLE_SENSORS,
+    CONF_NOTIFY,
+    CONF_ONLY_BELOW,
     CONF_OPEN_DELAY,
+    CONF_OUTDOOR_SENSOR,
+    CONF_REMIND_AFTER,
     CONF_ROOM_SENSOR,
     CONF_SCHEDULE,
     CONF_THERMOSTATS,
@@ -57,15 +61,17 @@ from .const import (
     DEFAULT_DEMAND_THRESHOLD,
     DEFAULT_FROST_TEMPERATURE,
     DEFAULT_OPEN_DELAY_SECONDS,
+    DEFAULT_REMIND_AFTER_MINUTES,
     DOMAIN,
     EVENT_ROOM,
     SECTION_BOOST,
+    SECTION_REMINDER,
     SECTION_WINDOW,
 )
 from .engine.external import Report, TrvView, classify
 from .engine.forecast import HORIZON, Block, Forecast, forecast
 from .engine.heating import Status, room_action, status as heating_status
-from .engine.log import entries as log_entries
+from .engine.log import Kind, entries as log_entries
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
 from .engine.room import (
     EndPreset,
@@ -80,6 +86,7 @@ from .engine.room import (
     StartBoost,
     step,
 )
+from .messages import reminder
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
 from .trv import TrvWriter
 
@@ -194,6 +201,13 @@ class RoomController:
             entry.options.get(CONF_DEMAND_THRESHOLD, DEFAULT_DEMAND_THRESHOLD)
         )
         window = data.get(SECTION_WINDOW, {})
+        reminder = entry.options.get(SECTION_REMINDER, {})
+        # Minutes after which an open window is reminded of; 0 (or no windows): never.
+        remind_minutes = (
+            int(window.get(CONF_REMIND_AFTER, DEFAULT_REMIND_AFTER_MINUTES) or 0)
+            if self.windows
+            else 0
+        )
         self.config = RoomConfig(
             open_delay=_duration(
                 window.get(CONF_OPEN_DELAY), timedelta(seconds=DEFAULT_OPEN_DELAY_SECONDS)
@@ -204,7 +218,14 @@ class RoomController:
             frost_temperature=float(
                 entry.options.get(CONF_FROST_TEMPERATURE, DEFAULT_FROST_TEMPERATURE)
             ),
+            remind_after=timedelta(minutes=remind_minutes) if remind_minutes else None,
+            remind_below=_float(reminder.get(CONF_ONLY_BELOW)),
         )
+        self.remind_minutes = remind_minutes
+        self.outdoor_sensor: str | None = (
+            reminder.get(CONF_OUTDOOR_SENSOR) if self.windows else None
+        )
+        self.notify_targets: list[str] = list(reminder.get(CONF_NOTIFY, []))
         self.idle_sensors: list[str] = list(entry.options.get(CONF_IDLE_SENSORS, []))
         self._store = store
         self._stored: RoomDict = store.room(self.room_id)
@@ -403,8 +424,7 @@ class RoomController:
         self._starting = True
         self._unsubs.append(async_call_later(self.hass, START_GRACE, self._on_start_grace_over))
         inputs = [self.schedule, *self.idle_sensors, *self.windows]
-        if self.room_sensor:
-            inputs.append(self.room_sensor)
+        inputs += [e for e in (self.room_sensor, self.outdoor_sensor) if e]
         self._unsubs.append(async_track_state_change_event(self.hass, inputs, self._on_input))
         # Editing a schedule may change nothing in its state: only a report tells.
         self._unsubs.append(
@@ -489,7 +509,14 @@ class RoomController:
             idle_temperature=self.idle_temperature,
             window_open=window_open,
             room_temperature=self._room_temperature(),
+            outdoor_temperature=self._outdoor_temperature(),
         )
+
+    def _outdoor_temperature(self) -> float | None:
+        if not self.outdoor_sensor:
+            return None
+        state = self._known_state(self.outdoor_sensor)
+        return _float(state.state) if state else None
 
     def _room_temperature(self) -> float | None:
         if self.room_sensor and (state := self.hass.states.get(self.room_sensor)):
@@ -762,6 +789,8 @@ class RoomController:
             "climate", DOMAIN, f"{self.room_id}_climate"
         )
         for entry in found:
+            if entry.kind is Kind.WINDOW_REMINDER:
+                self._send_reminder()
             self.hass.bus.async_fire(
                 EVENT_ROOM,
                 {
@@ -771,6 +800,30 @@ class RoomController:
                     "temperature": entry.temperature,
                     "until": entry.until.isoformat() if entry.until else None,
                 },
+            )
+
+    def _send_reminder(self) -> None:
+        """Tell the house's notify targets that a window has been open too long."""
+        title, text = reminder(self.hass.config.language, self.name, self.remind_minutes)
+        for target in self.notify_targets:
+            domain, _, service = target.partition(".")
+            if domain != "notify" or not service:
+                _LOGGER.warning("%s: %s is not a notify action", self.name, target)
+                continue
+            self.entry.async_create_background_task(
+                self.hass,
+                self._async_notify(service, title, text),
+                f"tado_x_matter_pro reminder {self.name}",
+            )
+
+    async def _async_notify(self, service: str, title: str, text: str) -> None:
+        try:
+            await self.hass.services.async_call(
+                "notify", service, {"title": title, "message": text}, blocking=True
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning(
+                "%s: the window reminder via notify.%s failed: %s", self.name, service, err
             )
 
     def _schedule_wakeup(self, when: datetime | None) -> None:

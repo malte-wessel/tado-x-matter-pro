@@ -135,8 +135,9 @@ def step(
         _apply_command(new, event, inputs)
     elif event is not None:
         _apply_change(new, event, inputs)
-    desired = _decide(new, inputs, config)
-    return Step(new, desired, _next_wakeup(new))
+    overdue = _remind(new, config, inputs, now)
+    desired = replace(_decide(new, inputs, config), window_overdue=overdue)
+    return Step(new, desired, _next_wakeup(new, config, now))
 
 
 def _apply_plan_change(state: RoomState, inputs: Inputs, *, numbers_changed: bool) -> None:
@@ -168,17 +169,40 @@ def _advance_window(
             _set_window(state, WindowPhase.CLOSED, None)
             state.bounces.append(now)
         elif phase is WindowPhase.OPENING and deadline is not None and now >= deadline:
-            _set_window(state, WindowPhase.OPEN, None)
-            _clear_window_ack(state)
+            _open(state, now)
         elif phase is WindowPhase.OPEN and not window_open:
             _set_window(state, WindowPhase.WAITING, now + config.close_delay)
+            state.window_open_since, state.reminded = None, False
         elif phase is WindowPhase.WAITING and window_open:
-            _set_window(state, WindowPhase.OPEN, None)
-            _clear_window_ack(state)
+            _open(state, now)
         elif phase is WindowPhase.WAITING and deadline is not None and now >= deadline:
             _set_window(state, WindowPhase.CLOSED, None)
         else:
             return
+
+
+def _open(state: RoomState, now: datetime) -> None:
+    """Switch the room off for an open window: a new opening, as far as reminders go."""
+    _set_window(state, WindowPhase.OPEN, None)
+    _clear_window_ack(state)
+    state.window_open_since, state.reminded = now, False
+
+
+def _reminder_due(state: RoomState, config: RoomConfig) -> datetime | None:
+    if config.remind_after is None or state.window_open_since is None:
+        return None
+    return state.window_open_since + config.remind_after
+
+
+def _remind(state: RoomState, config: RoomConfig, inputs: Inputs, now: datetime) -> bool:
+    """Return whether the window is open too long; mark the reminder sent when it is due."""
+    due = _reminder_due(state, config)
+    overdue = state.window is WindowPhase.OPEN and due is not None and now >= due
+    below, outdoor = config.remind_below, inputs.outdoor_temperature
+    cold = below is None or outdoor is None or outdoor < below
+    if overdue and cold:
+        state.reminded = True
+    return overdue
 
 
 def _set_window(state: RoomState, phase: WindowPhase, deadline: datetime | None) -> None:
@@ -299,8 +323,10 @@ def _frost(state: RoomState, desired: Desired, inputs: Inputs, config: RoomConfi
     return desired
 
 
-def _next_wakeup(state: RoomState) -> datetime | None:
+def _next_wakeup(state: RoomState, config: RoomConfig, now: datetime) -> datetime | None:
     times = [state.window_deadline]
+    if (due := _reminder_due(state, config)) is not None and due > now:
+        times.append(due)
     if state.override is not None and isinstance(state.override.expires, datetime):
         times.append(state.override.expires)
     if state.boost is not None:

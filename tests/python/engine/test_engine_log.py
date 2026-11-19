@@ -54,3 +54,10 @@ def test_boost_and_its_end() -> None:
     boost = Boost(30.0, T1)
     assert log(RoomState(), RoomState(boost=boost)) == [Entry(Kind.BOOST, 30.0, T1)]
     assert log(RoomState(boost=boost), RoomState()) == [Entry(Kind.BOOST_ENDED)]
+
+
+def test_the_window_reminder() -> None:
+    open_ = RoomState(window=WindowPhase.OPEN)
+    reminded = RoomState(window=WindowPhase.OPEN, reminded=True)
+    assert log(open_, reminded) == [Entry(Kind.WINDOW_REMINDER)]
+    assert log(reminded, reminded) == []

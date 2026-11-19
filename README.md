@@ -12,8 +12,8 @@ Tado X Matter Pro does that in one integration: you add a room, pick its thermos
 window contacts, and get a room thermostat that follows the plan, pauses for open windows,
 remembers manual changes, and shows which radiator is heating.
 
-> **Status: pre-release.** Room control, back to the schedule, boost and timed overrides work. The
-> window reminder and most repair issues are planned. Not affiliated with tado°.
+> **Status: pre-release.** Feature-complete for 0.1, covered by tests, not yet proven in a real house
+> for long. Not affiliated with tado°.
 
 ## Features
 

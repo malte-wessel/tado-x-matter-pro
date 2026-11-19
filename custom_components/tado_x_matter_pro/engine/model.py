@@ -46,6 +46,10 @@ class RoomConfig:
     open_delay: timedelta = timedelta(seconds=30)
     close_delay: timedelta = timedelta(minutes=5)
     frost_temperature: float = 7.0
+    # Remind once a window has been open (after the open delay) this long; None: never. Only when
+    # it is colder outside than `remind_below`, if that is set and the outdoor temperature known.
+    remind_after: timedelta | None = None
+    remind_below: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +63,7 @@ class Inputs:
     idle_temperature: float
     window_open: bool
     room_temperature: float | None = None
+    outdoor_temperature: float | None = None
 
 
 @dataclass(slots=True)
@@ -92,6 +97,8 @@ class RoomState:
     plan_key: tuple[bool, float | None, bool, float] | None = None
     frost_active: bool = False
     bounces: list[datetime] = field(default_factory=list)
+    window_open_since: datetime | None = None  # since when the room is off for an open window
+    reminded: bool = False  # the reminder for this opening went out
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +112,7 @@ class Desired:
     resume_at: datetime | None = None
     override_until: datetime | None = None
     boost_until: datetime | None = None
+    window_overdue: bool = False  # open longer than the room's reminder time
 
 
 def round_to_step(value: float) -> float:

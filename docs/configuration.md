@@ -26,7 +26,8 @@ Section **Boost** (collapsed)
 | Temperature | 30 °C | What a boost heats to (30 °C opens the valve fully). |
 | Duration | 30 min | How long a boost lasts. The `boost` action can give its own temperature and duration. |
 
-Section **Window reminder** (collapsed) – *planned, stored but not used yet*
+Section **Window reminder** (collapsed) – a notification when a window stays open; the minutes are
+set per room (*Remind after*)
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -57,7 +58,7 @@ Section **Windows** (collapsed)
 | --- | --- | --- |
 | **Switch off after** | 30 s | How long a window must be open before the room is switched off. Shorter openings are ignored entirely – a door opened to walk through, a contact that bounces. Set 0 to switch off at once. |
 | **Back on after** | 5 min | How long to wait after the last window closed before heating again. A window opened again during the wait switches the room off at once. |
-| **Remind after** | 30 min | *Planned:* send the window reminder after this long; 0 = never for this room. |
+| **Remind after** | 30 min | Remind once a window has kept the room off this long (counted from when the room switched off), once per opening; 0 = never for this room. The notification goes to the house's *Notify* actions, only below the house's outdoor temperature if set. |
 
 Second step **Heating demand** (optional)
 

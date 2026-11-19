@@ -19,6 +19,7 @@ MESSAGES: dict[str, dict[Kind, str]] = {
         Kind.WINDOW_ON: "back on after the window",
         Kind.BOOST: "boosts at {temperature} until {until}",
         Kind.BOOST_ENDED: "boost ended",
+        Kind.WINDOW_REMINDER: "a window has been open too long",
     },
     "de": {
         Kind.HOLD: "hält {temperature} bis zur nächsten Zeitplanänderung",
@@ -30,6 +31,7 @@ MESSAGES: dict[str, dict[Kind, str]] = {
         Kind.WINDOW_ON: "nach dem Fenster wieder an",
         Kind.BOOST: "Boost auf {temperature} bis {until}",
         Kind.BOOST_ENDED: "Boost beendet",
+        Kind.WINDOW_REMINDER: "ein Fenster ist zu lange offen",
     },
 }
 
@@ -46,3 +48,15 @@ def message(
         degrees = degrees.replace(".", ",")
     at = dt_util.as_local(until).strftime("%H:%M") if until else ""
     return text.format(temperature=degrees, until=at)
+
+
+REMINDER: dict[str, tuple[str, str]] = {
+    "en": ("Window open", "{room}: a window has been open for {minutes} minutes."),
+    "de": ("Fenster offen", "{room}: Ein Fenster ist seit {minutes} Minuten offen."),
+}
+
+
+def reminder(language: str, room: str, minutes: int) -> tuple[str, str]:
+    """Return the window reminder's title and message in `language` (English for any other)."""
+    title, text = REMINDER.get(language.split("-", maxsplit=1)[0].lower(), REMINDER["en"])
+    return title, text.format(room=room, minutes=minutes)
