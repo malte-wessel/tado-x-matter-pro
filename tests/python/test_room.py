@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.tado_x_matter_pro.const import DOMAIN
-from tests.python.conftest import FakeTrv, set_inputs
+from tests.python.conftest import HOUSE_OPTIONS, FakeTrv, house_entry, set_inputs
 
 type Setup = Callable[..., Awaitable[MockConfigEntry]]
 
@@ -345,3 +345,90 @@ async def test_entities_belong_to_the_room_device(hass: HomeAssistant, setup_hou
     climate = registry.async_get("climate.kitchen_heating")
     assert climate is not None
     assert {registry.async_get(e).device_id for e in kitchen} == {climate.device_id}  # type: ignore[union-attr]
+
+
+async def test_an_away_sensor_that_never_reports_does_not_keep_rooms_idle(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    # e.g. a deleted helper: it never reports, and after the start grace counts as off
+    options = {**HOUSE_OPTIONS, "idle_sensors": ["input_boolean.away", "input_boolean.gone"]}
+    await setup_house(house_entry(options=options))
+    set_inputs(hass, away="on")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "idle"
+    await advance(hass, freezer, 5 * 60)
+
+    set_inputs(hass, away="off")
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "schedule"
+
+
+async def test_a_window_contact_not_back_after_a_restart_keeps_the_room_off(
+    hass: HomeAssistant, setup_house: Setup, freezer: FrozenDateTimeFactory
+) -> None:
+    entry = await setup_house()
+    set_inputs(hass, kitchen_window="on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 30)
+    assert mode(hass, "kitchen") == "window"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    set_inputs(hass, kitchen_window="unavailable")
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "window"
+    await advance(hass, freezer, 4 * 60)
+    assert mode(hass, "kitchen") == "window"
+    assert trv_state(hass, "climate.kitchen_trv")[0] == "off"
+
+    set_inputs(hass, kitchen_window="off")  # it reports again
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "waiting"
+
+
+async def test_a_late_report_of_our_own_write_is_not_a_change_while_down(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    entry = await setup_house()  # the kitchen thermostat is known at 21
+    trv = trvs["climate.kitchen_trv"]
+    accepted: list[dict[str, Any]] = []
+
+    async def report_later(**kwargs: Any) -> None:
+        accepted.append(kwargs)  # the thermostat reports only after the call's context expired
+
+    trv.async_set_temperature = report_later  # type: ignore[method-assign]
+    set_inputs(hass, ground_floor="off")  # the plan writes 18
+    await hass.async_block_till_done()
+    assert accepted
+    await advance(hass, freezer, 8)
+    trv.dial(float(accepted[-1]["temperature"]))  # our value, without our context
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 60)
+    assert mode(hass, "kitchen") == "idle"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "idle"
+
+
+async def test_a_dial_turned_while_stopped_is_a_hold_also_if_never_written(
+    hass: HomeAssistant, setup_house: Setup, trvs: dict[str, FakeTrv]
+) -> None:
+    entry = await setup_house()
+    assert trvs["climate.bath_trv"].writes == []  # already at the idle temperature
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    trvs["climate.bath_trv"].dial(23.0)
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert mode(hass, "bathroom") == "manual"
+    assert trv_state(hass, "climate.bath_trv") == ("heat", 23.0)
+    assert trv_state(hass, "climate.bath_tub_trv") == ("heat", 23.0)

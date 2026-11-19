@@ -70,10 +70,11 @@ def classify(  # noqa: PLR0911, PLR0913 – one return per rule reads best here
         return Report.IGNORED  # the setpoint of a thermostat that is off does not matter
     if command is not None and context_id is not None and context_id in command.context_ids:
         return Report.OURS
-    if command is not None and _on_the_way(new, command, now):
-        return Report.INTERMEDIATE
+    # Before "on the way": the last report of our write may come after its context expired.
     if new.hvac_mode == desired[0] and (desired[0] == "off" or _same(new.setpoint, desired[1])):
         return Report.CONVERGED
+    if command is not None and _on_the_way(new, command, now):
+        return Report.INTERMEDIATE
     return Report.EXTERNAL
 
 

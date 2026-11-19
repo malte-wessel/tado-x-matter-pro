@@ -18,13 +18,17 @@ HEAT_18 = TrvView(available=True, hvac_mode="heat", setpoint=18.0)
 HEAT_21 = TrvView(available=True, hvac_mode="heat", setpoint=21.0)
 OFF_18 = TrvView(available=True, hvac_mode="off", setpoint=18.0)
 COMMAND = Command(prev=("heat", 18.0), want=("heat", 21.0), issued_at=T0, context_ids={"ours"})
+# Switching on: Matter reports the mode first, the setpoint second.
+SWITCH_ON = Command(prev=("off", 18.0), want=("heat", 21.0), issued_at=T0, context_ids={"ours"})
 
 
 @pytest.mark.parametrize(
     ("old", "new", "desired", "command", "context", "seconds", "expected"),
     [
         (HEAT_18, HEAT_21, ("heat", 21.0), COMMAND, "ours", 2, Report.OURS),
-        (HEAT_18, HEAT_21, ("heat", 21.0), COMMAND, "late", 8, Report.INTERMEDIATE),
+        # our value, reported after the context expired: arrived, not "on the way"
+        (HEAT_18, HEAT_21, ("heat", 21.0), COMMAND, "late", 8, Report.CONVERGED),
+        (OFF_18, HEAT_18, ("heat", 21.0), SWITCH_ON, "late", 8, Report.INTERMEDIATE),
         (HEAT_18, HEAT_21, ("heat", 21.0), COMMAND, "late", 120, Report.CONVERGED),
         (HEAT_18, HEAT_21, ("heat", 18.0), None, "dial", 0, Report.EXTERNAL),
         (HEAT_21, OFF_18, ("heat", 21.0), None, "dial", 0, Report.EXTERNAL),

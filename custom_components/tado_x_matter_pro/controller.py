@@ -54,7 +54,7 @@ from .const import (
 )
 from .engine.external import SETTLE, Command, Report, TrvView, classify
 from .engine.heating import Status, room_action, status as heating_status
-from .engine.model import Desired, Inputs, RoomConfig, RoomState
+from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
 from .engine.room import Event as RoomEvent, ExternalChange, Resume, SetMode, SetTemperature, step
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
 
@@ -65,6 +65,9 @@ EXTERNAL_COALESCE = timedelta(seconds=4)
 TOLERANCE = 0.05
 # Entries kept for diagnostics: reports, decisions and writes.
 TRACE_LENGTH = 200
+# After a start, inputs that have not reported yet keep the room's last decision this long; an
+# input still unknown after that (e.g. a deleted helper) counts as off.
+START_GRACE = timedelta(minutes=5)
 
 
 def _duration(value: dict[str, Any] | None, default: timedelta) -> timedelta:
@@ -134,6 +137,7 @@ class RoomController:
         self._commands: dict[str, Command] = {}
         # Last available state of each input: an unavailable one keeps its last known state.
         self._known: dict[str, State] = {}
+        self._starting = False
         self._reconcile_task: asyncio.Task[None] | None = None
         self._reconcile_again = False
         self.trace: deque[dict[str, Any]] = deque(maxlen=TRACE_LENGTH)
@@ -269,6 +273,8 @@ class RoomController:
     async def async_start(self) -> None:
         """Snapshot the thermostats, follow every input, decide."""
         self._views = {eid: self._view(eid) for eid in self.thermostats}
+        self._starting = True
+        self._unsubs.append(async_call_later(self.hass, START_GRACE, self._on_start_grace_over))
         inputs = [self.schedule, *self.idle_sensors, *self.windows]
         if self.room_sensor:
             inputs.append(self.room_sensor)
@@ -284,6 +290,11 @@ class RoomController:
                 )
             )
         self._run(self._changed_while_down())
+        # From now on a restart compares against what the thermostats have now, also those the
+        # integration never had to write.
+        for entity_id, view in self._views.items():
+            if view.available:
+                self._remember(entity_id, view)
 
     @callback
     def async_stop(self) -> None:
@@ -316,9 +327,10 @@ class RoomController:
         return self._known.get(entity_id)
 
     def _read_inputs(self) -> Inputs:
-        # Inputs not known since the start keep the last decision (the stored plan key), so a
-        # sensor that is slow to come up after a restart neither switches the plan nor ends holds.
-        last = self.state.plan_key
+        # Shortly after a start, inputs not known yet keep the last decision (the stored plan key
+        # and window phase), so a sensor slow to come up neither switches the plan, ends holds,
+        # nor lets a room heat with its window open. Later, an unknown input counts as off.
+        last = self.state.plan_key if self._starting else None
         schedule = self._known_state(self.schedule)
         if schedule is not None:
             schedule_on = schedule.state == STATE_ON
@@ -329,16 +341,17 @@ class RoomController:
         idle = any(s is not None and s.state == STATE_ON for s in idle_states)
         if not idle and last and None in idle_states:
             idle = last[2]
+        window_states = [self._known_state(e) for e in self.windows]
+        window_open = any(s is not None and s.state == STATE_ON for s in window_states)
+        if not window_open and self._starting and None in window_states:
+            window_open = self.state.window in (WindowPhase.OPENING, WindowPhase.OPEN)
         return Inputs(
             schedule_on=schedule_on,
             block_temperature=block,
             idle=idle,
             heating_temperature=self.heating_temperature,
             idle_temperature=self.idle_temperature,
-            window_open=any(
-                (s := self._known_state(e)) is not None and s.state == STATE_ON
-                for e in self.windows
-            ),
+            window_open=window_open,
             room_temperature=self._room_temperature(),
         )
 
@@ -357,6 +370,11 @@ class RoomController:
 
     @callback
     def _on_input(self, _event: Event[EventStateChangedData]) -> None:
+        self._run()
+
+    @callback
+    def _on_start_grace_over(self, _now: datetime) -> None:
+        self._starting = False
         self._run()
 
     @callback
@@ -392,8 +410,8 @@ class RoomController:
             )
         elif old is None or old.available != new.available:
             self._trace("availability", thermostat=entity_id, available=new.available)
-        if report in (Report.OURS, Report.CONVERGED, Report.EXTERNAL):
-            self._remember(entity_id, new)
+        if new.available and report is not Report.INTERMEDIATE:
+            self._remember(entity_id, new)  # what it settled on, by whomever
         if report is Report.EXTERNAL:
             _LOGGER.debug("%s: %s changed externally to %s", self.name, entity_id, new)
             self._pending_external = ExternalChange(new.hvac_mode or "off", new.setpoint)

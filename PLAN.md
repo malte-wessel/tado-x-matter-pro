@@ -143,14 +143,16 @@ hold; in OPEN → manual hold with `window_ack`; a new OPENING → OPEN clears `
 
 **Restart:** load the store, wait for HA started, rebuild inputs; a changed plan key is a plan
 change; expired deadlines apply; persisted OPEN/WAITING with a window still open → OPEN, WAITING past
-its deadline → CLOSED, CLOSED but open now → OPENING. A TRV that differs from `last_commanded` → manual
-hold (first install: apply the plan). Reconcile writes only on deviation, so reloads cause no writes.
+its deadline → CLOSED, CLOSED but open now → OPENING. Inputs not reported yet keep the stored plan key
+and window phase for 5 min, then count as off. A TRV that differs from its last known state (every
+settled report, and a snapshot when the room starts) → manual hold (first install: apply the plan).
+Reconcile writes only on deviation, so reloads cause no writes.
 
 **External changes:** per TRV an expectation `{prev, want, ctx_ids, issued_at, returned_at}` is
 registered before the blocking service call. Each report that changes mode or setpoint is (1) ours
-when it carries our context id, (2) intermediate within a 30 s settle window on the prev → want path,
-(3) converged when it equals the desired value ±0.05, (4) otherwise external, coalesced over 4 s (dial
-bursts). Unavailable → available with a deviation is drift and re-applied. Setpoint-only reports
+when it carries our context id, (2) converged when it equals the desired value ±0.05 (also our own
+report arriving after its context expired), (3) intermediate within a 30 s settle window on the
+prev → want path, (4) otherwise external, coalesced over 4 s (dial bursts). Unavailable → available with a deviation is drift and re-applied. Setpoint-only reports
 while off are ignored. Counters and a trace go to diagnostics.
 
 **Issues (Repairs):** TRV unavailable > 30 min; window sensor chatter (bounces per hour); Tado app

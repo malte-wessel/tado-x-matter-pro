@@ -162,9 +162,12 @@ reliable.
 ## Sensors and schedules that drop out
 
 A schedule, away sensor or window contact that becomes *unavailable* or *unknown* keeps its last
-known state: a short drop-out is neither a plan change (holds stay) nor a window event. After a
-restart, an input that has not come back yet keeps the room's last decision – for example, away
-stays on until the away sensor reports again.
+known state: a short drop-out is neither a plan change (holds stay) nor a window event.
+
+After a restart, an input that has not reported yet keeps the room's last decision for up to
+5 minutes – away stays on, and a room that was off for an open window stays off. An input that is
+still unknown after that counts as *off* (closed, not away, no block), so a deleted helper does not
+keep a room in eco for good.
 
 ## Thermostats that drop out
 
@@ -175,14 +178,14 @@ change.
 ## Restarts and reloads
 
 The integration stores, per room: comfort and eco temperature, the current hold, the window phase
-with its deadline, each thermostat's last known mode and setpoint, and the last heating status.
-After a restart:
+with its deadline, and each thermostat's last known mode and setpoint. After a restart:
 
 - deadlines that passed while Home Assistant was down take effect at once,
 - a plan change that happened meanwhile (a block ended at night) ends a hold as usual,
 - a window that was open before keeps the room off; one that was opened while Home Assistant was
   down starts its open delay,
-- a thermostat that was changed meanwhile becomes a hold,
+- a thermostat that was changed meanwhile becomes a hold (also one the integration never had to
+  write: each thermostat's state is noted when the room starts),
 - nothing is written to thermostats that are already right.
 
 The integration starts deciding once Home Assistant has finished starting, so that thermostats,

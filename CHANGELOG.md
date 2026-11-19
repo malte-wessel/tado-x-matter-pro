@@ -23,7 +23,12 @@ Initial release.
   reports and writes, and a trace of the last 200 reports, decisions and writes.
 - Schedules, away sensors and window contacts that become unavailable keep their last known state,
   so a short drop-out neither ends manual holds nor switches a room between eco and comfort. After
-  a restart, inputs that have not come back yet keep the last decision.
+  a restart, inputs that have not reported yet keep the last decision for up to 5 minutes (a room
+  off for an open window stays off); after that an unknown input counts as off, so a deleted away
+  helper does not keep rooms in eco.
+- A thermostat's late report of the integration's own write is recognised as such, so it no longer
+  turns into a manual hold after the next restart. Changes made while Home Assistant was down are
+  also detected on thermostats the integration never had to write.
 - While a hand-turned dial settles, nothing is written to the room's thermostats, so the dial is
   never turned back to the old value.
 - The store is written only when something changed, not after every thermostat reading; the
