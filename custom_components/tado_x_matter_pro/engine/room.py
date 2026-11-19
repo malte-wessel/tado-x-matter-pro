@@ -53,7 +53,15 @@ class Resume:
     """Back to the schedule: ends overrides and the wait after a window closed."""
 
 
-type Event = ExternalChange | SetTemperature | SetMode | Resume
+@dataclass(frozen=True, slots=True)
+class NumberChanged:
+    """The room's comfort or eco temperature changed: like a plan change, it ends a hold.
+
+    Either one, also the one the plan does not use right now.
+    """
+
+
+type Event = ExternalChange | SetTemperature | SetMode | Resume | NumberChanged
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +96,7 @@ def step(
 ) -> Step:
     """Advance the room: plan changes, expiries, windows, the event; then decide."""
     new = deepcopy(state)
-    _apply_plan_change(new, inputs)
+    _apply_plan_change(new, inputs, numbers_changed=isinstance(event, NumberChanged))
     _expire(new, now)
     _advance_window(new, config, now, window_open=inputs.window_open)
     if event is not None:
@@ -97,9 +105,9 @@ def step(
     return Step(new, desired, _next_wakeup(new))
 
 
-def _apply_plan_change(state: RoomState, inputs: Inputs) -> None:
+def _apply_plan_change(state: RoomState, inputs: Inputs, *, numbers_changed: bool) -> None:
     key = plan_key(inputs)
-    if state.plan_key is not None and key != state.plan_key:
+    if numbers_changed or (state.plan_key is not None and key != state.plan_key):
         override = state.override
         if override is not None and override.expires == Expiry.NEXT_CHANGE:
             state.override = None

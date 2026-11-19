@@ -75,8 +75,8 @@ room's two plan temperatures, 5–30 °C in 0.5 °C steps. Defaults 21 °C and 1
 | Comfort temperature | During schedule blocks that have no temperature of their own. |
 | Eco temperature | Outside schedule blocks and while an away sensor is on. |
 
-Changing a number applies at once. Changing the one the plan currently uses is a plan change and
-ends a manual hold in that room. The values are stored by the integration and survive restarts.
+Changing a number applies at once and counts as a plan change: it ends a manual hold in that room
+– either number, also the one the plan does not use right now. The values are stored by the integration and survive restarts.
 
 ## Window open
 

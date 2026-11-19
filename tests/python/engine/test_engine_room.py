@@ -21,6 +21,7 @@ from custom_components.tado_x_matter_pro.engine.model import (
 from custom_components.tado_x_matter_pro.engine.room import (
     Event,
     ExternalChange,
+    NumberChanged,
     Resume,
     SetMode,
     SetTemperature,
@@ -141,13 +142,21 @@ def test_away_clears_a_manual_hold() -> None:
     assert room.desired.mode is Mode.IDLE
 
 
-def test_changing_the_active_heating_temperature_clears_a_hold() -> None:
+def test_changing_a_temperature_number_clears_a_hold() -> None:
     room = Room()
     room.run(SetTemperature(24.0))
-    room.run(idle_temperature=17.0)  # not the active base: hold stays
-    assert room.desired.mode is Mode.MANUAL
-    room.run(heating_temperature=22.0)
+    room.run(NumberChanged(), idle_temperature=17.0)  # also the one the block does not use
+    assert (room.desired.temperature, room.desired.mode) == (21.0, Mode.SCHEDULE)
+    room.run(SetTemperature(24.0))
+    room.run(NumberChanged(), heating_temperature=22.0)
     assert (room.desired.temperature, room.desired.mode) == (22.0, Mode.SCHEDULE)
+
+
+def test_a_number_change_keeps_a_room_that_is_switched_off() -> None:
+    room = Room()
+    room.run(SetMode("off"))
+    room.run(NumberChanged(), heating_temperature=22.0)
+    assert room.desired.mode is Mode.OFF
 
 
 def test_dial_while_window_open_heats_until_the_next_opening() -> None:

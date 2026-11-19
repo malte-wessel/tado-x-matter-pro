@@ -44,6 +44,8 @@ Initial release.
   with a value nobody sent becomes a hold. A repair issue appears after 30 minutes unconfirmed.
 - Schedule edges and away changes are spread over a random 0–45 seconds per room.
 - A dial turned back to the previous value right after the integration's write is now a hold.
+- Changing a room's comfort or eco temperature ends its manual hold – either number, also the one
+  the plan does not use at the moment.
 - The store is written only when something changed, not after every thermostat reading; the
   heating status sensors' `demand` attribute is not recorded (the demand entity keeps its own
   history).

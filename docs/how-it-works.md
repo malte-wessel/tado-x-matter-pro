@@ -40,9 +40,8 @@ A **plan change** happens when any of these change:
 - a schedule block starts or ends,
 - the active block's own temperature is different from the previous one,
 - an away sensor switches on or off (more precisely: "any away sensor on" changes),
-- the temperature the plan currently uses changes – for example you move the comfort temperature
-  while a block is active. Moving the eco temperature during a block is not a plan change for that
-  room, because the block does not use it.
+- the room's comfort or eco temperature changes – either one, also the one the plan does not use
+  right now: touching the heating settings means "follow the plan".
 
 Plan changes matter because they end manual holds (below). A schedule entity also updates its
 *next event* attribute at block boundaries and when you edit it; that alone is not a plan change.
@@ -81,7 +80,7 @@ What ends a hold:
 | --- | --- |
 | Schedule block starts or ends | ends |
 | Away sensor on or off | ends |
-| The temperature the plan uses changes | ends |
+| Comfort or eco temperature changed | ends |
 | Room thermostat set to *auto* | ends |
 | Another manual change | replaced by the new one |
 | Restart, reload, changing the room | kept |

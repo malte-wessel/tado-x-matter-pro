@@ -137,7 +137,7 @@ hold; in OPEN → manual hold with `window_ack`; a new OPENING → OPEN clears `
 | --- | --- | --- | --- | --- | --- |
 | Plan key change | clear | keep | keep | keep | – |
 | Idle on / off | clear | keep | keep | keep | – |
-| Number change affecting the active plan base | clear | keep | keep | keep | – |
+| Number change (comfort or eco, either one; decided 2026-11-19) | clear | keep | keep | keep | – |
 | Expiry | – | clear | – | clear | → CLOSED |
 | Resume | clear | clear | clear | clear | → CLOSED |
 | External TRV change | replace (sync siblings) | replace | replace | clear | see window |

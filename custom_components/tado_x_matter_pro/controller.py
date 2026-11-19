@@ -53,7 +53,15 @@ from .const import (
 from .engine.external import Report, TrvView, classify
 from .engine.heating import Status, room_action, status as heating_status
 from .engine.model import Desired, Inputs, RoomConfig, RoomState, WindowPhase
-from .engine.room import Event as RoomEvent, ExternalChange, Resume, SetMode, SetTemperature, step
+from .engine.room import (
+    Event as RoomEvent,
+    ExternalChange,
+    NumberChanged,
+    Resume,
+    SetMode,
+    SetTemperature,
+    step,
+)
 from .store import HeatingStore, RoomDict, state_from_dict, state_to_dict
 from .trv import TrvWriter
 
@@ -229,13 +237,17 @@ class RoomController:
 
     @callback
     def set_number(self, key: str, value: float) -> None:
-        """Change the heating or idle temperature."""
+        """Change the heating or idle temperature; a real change ends a manual hold."""
         if key == "heating_temperature":
+            if self._stored["heating_temperature"] == value:
+                return
             self._stored["heating_temperature"] = value
         else:
+            if self._stored["idle_temperature"] == value:
+                return
             self._stored["idle_temperature"] = value
         self._store.save()
-        self._run()
+        self._run(NumberChanged())
 
     def diagnostics(self) -> dict[str, Any]:
         """Everything that explains the room's behaviour, for a bug report."""

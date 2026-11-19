@@ -459,3 +459,23 @@ async def test_while_a_window_pauses_the_room_its_target_is_what_it_returns_to(
     room = hass.states.get("climate.kitchen_heating")
     assert room is not None
     assert room.attributes["temperature"] is None  # switched off: nothing to return to
+
+
+async def test_changing_either_number_ends_a_hold(hass: HomeAssistant, setup_house: Setup) -> None:
+    await setup_house()
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": "climate.kitchen_heating", "temperature": 23.5},
+        blocking=True,
+    )
+    assert mode(hass, "kitchen") == "manual"
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.kitchen_heating_eco_temperature", "value": 17},  # not used now
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert mode(hass, "kitchen") == "schedule"
+    assert trv_state(hass, "climate.kitchen_trv") == ("heat", 21.0)
