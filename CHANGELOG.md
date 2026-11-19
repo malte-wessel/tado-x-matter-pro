@@ -14,7 +14,7 @@ Initial release.
   over Matter. Thermostats with one get a heating status (heating / reached / off, heating from a
   house-wide threshold, default 3 %); the room thermostat shows the most active one as its
   action.
-- Documentation in `docs/`: installation, configuration, how it works, entities, heating status,
+- Documentation in `docs/` (including Matter/Thread advice in the installation guide): installation, configuration, how it works, entities, heating status,
   dashboards, automations, migrating, troubleshooting, development.
 - The room thermostat stays *off* while frost protection heats a room that was switched off.
 - Per room with windows a "Back on" timestamp sensor: when heating resumes after the windows were

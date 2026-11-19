@@ -28,13 +28,36 @@ and would fight with the integration. In the tado° app, for every room with a T
    would otherwise change the setpoint at its own block times; the integration treats such changes
    as manual changes and holds them.
 2. **Manual control:** set changes to last "until you cancel" (not "until the next block" or a
-   timer), so tado° never undoes a setpoint on its own.
+   timer), so tado° never undoes a setpoint on its own. Changes coming from a smart home count as
+   manual control for tado°, so this setting decides how long the integration's setpoints last.
 3. **Open window detection:** switch it off. It would switch the thermostat off on its own; the
    integration does window handling with your contacts instead.
 
 After these settings, every setpoint change comes either from the integration, from someone turning
 the thermostat, or from someone using the tado° app – and the integration can tell its own writes
-from the other two.
+from the other two. If tado° still overwrites setpoints, a repair issue says so
+([Troubleshooting](troubleshooting.md#repair-issues)).
+
+## Matter and Thread
+
+The thermostats talk Thread, a low-power mesh. How reliable the heating is depends on that mesh
+more than on anything else:
+
+- **Pair in the tado° app first, then share** the thermostat with Home Assistant (in the tado°
+  app: the device's settings → *Pair device* / *Device linking*, then add the code in Home
+  Assistant). Pairing the other way round is refused by the tado° app.
+- **A Thread border router reachable from Home Assistant** – Home Assistant's own (OpenThread
+  Border Router with a Thread radio) or a compatible one from another vendor. For tado°'s firmware
+  updates and cloud features the thermostats need internet access through it (NAT64; Home
+  Assistant's OpenThread Border Router app has it as an option).
+- **Routers near every thermostat:** battery thermostats don't route; mains-powered Thread devices
+  (smart plugs, the border router itself) do. A thermostat far from the nearest router drops out
+  – it shows *unavailable*, takes setpoints late, or not at all.
+
+The integration copes with drop-outs: it confirms every write and sends it again, sends nothing to
+a thermostat that is unavailable but catches up when it returns, and recognises old writes the
+Matter server delivers late. A thermostat that has not taken its setting for 30 minutes raises a
+repair issue – a sign that it needs a router nearby.
 
 ## Install with HACS
 
