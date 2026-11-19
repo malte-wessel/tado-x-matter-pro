@@ -141,24 +141,15 @@ Frost protection still applies.
 
 ## Tell me when a window has paused the heating for long
 
-Until the integration's own window reminder is available:
+The integration does that itself: set the room's *Remind after* and the house's *Notify* actions
+([Windows → Reminder](how-it-works.md#reminder)). For something else – a light, a speaker – use the
+room's *Window open too long* sensor as a trigger:
 
 ```yaml
-alias: Kitchen window open for 30 minutes
 triggers:
   - trigger: state
-    entity_id: binary_sensor.kitchen_heating_window_open
+    entity_id: binary_sensor.kitchen_heating_window_open_too_long
     to: "on"
-    for: { minutes: 30 }
-conditions:
-  - condition: numeric_state
-    entity_id: sensor.outdoor_temperature
-    below: 15
-actions:
-  - action: notify.mobile_app_phone
-    data:
-      title: Window open
-      message: The kitchen window has been open for 30 minutes.
 ```
 
 ## Heating hours per radiator

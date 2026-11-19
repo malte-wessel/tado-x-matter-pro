@@ -10,7 +10,7 @@
           "demand_threshold": "Heizbedarf-Schwelle"
         },
         "data_description": {
-          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
+          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Eco-Temperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
           "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist.",
           "demand_threshold": "Ab diesem Heizbedarf (%) gilt ein Thermostat als heizend. Nur für Thermostate mit Heizbedarf-Entität."
         },
@@ -40,6 +40,9 @@
     },
     "abort": {
       "single_instance_allowed": "Tado X Matter Pro ist bereits eingerichtet."
+    },
+    "error": {
+      "only_below_needs_outdoor_sensor": "„Nur unter“ braucht einen Außentemperatur-Sensor."
     }
   },
   "options": {
@@ -52,7 +55,7 @@
           "demand_threshold": "Heizbedarf-Schwelle"
         },
         "data_description": {
-          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Leerlauftemperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
+          "idle_sensors": "Solange einer davon an ist, nutzen alle Räume ihre Eco-Temperatur (z. B. Außer-Haus- oder Urlaubsmodus).",
           "frost_temperature": "Kein Raum wird kälter, auch wenn er ausgeschaltet oder ein Fenster offen ist.",
           "demand_threshold": "Ab diesem Heizbedarf (%) gilt ein Thermostat als heizend. Nur für Thermostate mit Heizbedarf-Entität."
         },
@@ -79,6 +82,9 @@
           }
         }
       }
+    },
+    "error": {
+      "only_below_needs_outdoor_sensor": "„Nur unter“ braucht einen Außentemperatur-Sensor."
     }
   },
   "config_subentries": {
@@ -101,7 +107,7 @@
           "data_description": {
             "name": "Leer: der Bereich des ersten Thermostats.",
             "thermostats": "Alle Heizkörperthermostate des Raums. Ein Thermostat gehört zu genau einem Raum.",
-            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Heiztemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
+            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Komforttemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
             "windows": "Kontakte, die den Raum ausschalten, solange sie offen sind.",
             "room_sensor": "Optional. Wird als Raumtemperatur angezeigt; ohne ihn der Mittelwert der Thermostate."
           },
@@ -133,7 +139,7 @@
           "data_description": {
             "name": "Leer: der Bereich des ersten Thermostats.",
             "thermostats": "Alle Heizkörperthermostate des Raums. Ein Thermostat gehört zu genau einem Raum.",
-            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Heiztemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
+            "schedule": "Ein Zeitplan-Helfer: während seiner Blöcke gilt die Komforttemperatur oder die eigene „temperature“ des Blocks (zusätzliche Daten).",
             "windows": "Kontakte, die den Raum ausschalten, solange sie offen sind.",
             "room_sensor": "Optional. Wird als Raumtemperatur angezeigt; ohne ihn der Mittelwert der Thermostate."
           },
@@ -236,7 +242,7 @@
             "name": "Planziel"
           },
           "next_change": {
-            "name": "Nächster Wechsel"
+            "name": "Nächste Änderung"
           },
           "next_target": {
             "name": "Danach"
@@ -332,7 +338,7 @@
       "description": "{count} Öffnungen in {room} in der letzten Stunde waren kürzer als die Ausschaltverzögerung des Raums. Der Raum ignoriert sie, aber ein flatternder Kontakt hat meist einen lockeren Magneten oder eine Tür, die nicht richtig schließt.\n\nPrüfe den Kontakt, oder erhöhe „Ausschalten nach“ des Raums, wenn die Tür oft kurz geöffnet wird. Die Meldung verschwindet nach einer Stunde ohne Flattern."
     },
     "window_contact_unavailable": {
-      "title": "Fensterkontakt {contact} ist weg, während offen",
+      "title": "Fensterkontakt {contact} meldet sich nicht, das Fenster war offen",
       "description": "{contact} in {room} ist seit 30 Minuten nicht erreichbar, und zuletzt meldete er offen – deshalb bleibt {room} aus, bis er sich wieder meldet.\n\nPrüfe Batterie und Verbindung. Ist das Fenster zu, heizt der Raum wieder, sobald sich der Kontakt meldet."
     },
     "tado_overwriting": {
@@ -378,10 +384,6 @@
         "duration": {
           "name": "Dauer",
           "description": "Wie lange, ab jetzt."
-        },
-        "until_next_change": {
-          "name": "Bis zur nächsten Änderung",
-          "description": "Der Standard: bis sich der Zeitplan das nächste Mal ändert."
         }
       }
     },

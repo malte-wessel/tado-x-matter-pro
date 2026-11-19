@@ -207,3 +207,11 @@ async def test_preset_none_ends_a_timed_override(hass: HomeAssistant, setup_hous
     )
     await hass.async_block_till_done()
     assert mode(hass) == "schedule"
+
+
+async def test_an_override_with_a_preset_shows_the_preset(
+    hass: HomeAssistant, setup_house: Setup
+) -> None:
+    await setup_house()
+    await action(hass, "set_override", preset="eco", duration={"hours": 1})
+    assert attribute(hass, ROOM, "preset_mode") == "eco"

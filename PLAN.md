@@ -112,7 +112,7 @@ Home Assistant 2026.10 builds entity ids from area + device + entity (`climate.k
 | Service | Fields |
 | --- | --- |
 | `boost` | `duration?`, `temperature?` |
-| `set_override` | `temperature` or `preset` (comfort/eco); `until` (time, rolls to tomorrow if past) or `duration` or `until_next_change` |
+| `set_override` | `temperature` or `preset` (comfort/eco); `until` (time, rolls to tomorrow if past) or `duration`; without either until the next plan change |
 | `extend_block` | `until` → override with a snapshot of the current plan target |
 | `resume_schedule` | – |
 

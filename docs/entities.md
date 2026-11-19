@@ -128,7 +128,7 @@ windows or doors have it. The same time is the Mode sensor's `resume_at` attribu
 
 - `button.heating_resume_all_rooms` – every room back to its schedule at once.
 - `sensor.heating_rooms_off_schedule` – the number of rooms where something other than the plan
-  decides: a manual hold or a room switched off (later also boost and timed overrides) – exactly
+  decides: a manual hold, a timed override, a boost or a room switched off – exactly
   the rooms *Resume all rooms* would change. Attribute `rooms`: those rooms by name, each with its
   [mode](#mode), e.g. `{"Kitchen": "manual"}`. A dashboard badge can show the sensor while it is
   above 0 and press the button on tap.

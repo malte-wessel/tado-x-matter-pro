@@ -10,7 +10,7 @@
           "demand_threshold": "Heating demand threshold"
         },
         "data_description": {
-          "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
+          "idle_sensors": "While any of these is on, every room uses its eco temperature (e.g. away or vacation mode).",
           "frost_temperature": "No room drops below this, even when it is switched off or a window is open.",
           "demand_threshold": "From this heating demand (%) on, a thermostat counts as heating. Only for thermostats with a demand entity."
         },
@@ -40,6 +40,9 @@
     },
     "abort": {
       "single_instance_allowed": "Tado X Matter Pro is already set up."
+    },
+    "error": {
+      "only_below_needs_outdoor_sensor": "\"Only below\" needs an outdoor temperature sensor."
     }
   },
   "options": {
@@ -52,7 +55,7 @@
           "demand_threshold": "Heating demand threshold"
         },
         "data_description": {
-          "idle_sensors": "While any of these is on, every room uses its idle temperature (e.g. away or vacation mode).",
+          "idle_sensors": "While any of these is on, every room uses its eco temperature (e.g. away or vacation mode).",
           "frost_temperature": "No room drops below this, even when it is switched off or a window is open.",
           "demand_threshold": "From this heating demand (%) on, a thermostat counts as heating. Only for thermostats with a demand entity."
         },
@@ -79,6 +82,9 @@
           }
         }
       }
+    },
+    "error": {
+      "only_below_needs_outdoor_sensor": "\"Only below\" needs an outdoor temperature sensor."
     }
   },
   "config_subentries": {
@@ -101,7 +107,7 @@
           "data_description": {
             "name": "Empty: the area of the first thermostat.",
             "thermostats": "All radiator thermostats of the room. A thermostat can belong to one room only.",
-            "schedule": "A schedule helper: during its blocks the room uses its heating temperature, or the block's own \"temperature\" (additional data).",
+            "schedule": "A schedule helper: during its blocks the room uses its comfort temperature, or the block's own \"temperature\" (additional data).",
             "windows": "Contacts that switch the room off while open.",
             "room_sensor": "Optional. Shown as the room's temperature; without it, the thermostats' mean."
           },
@@ -133,7 +139,7 @@
           "data_description": {
             "name": "Empty: the area of the first thermostat.",
             "thermostats": "All radiator thermostats of the room. A thermostat can belong to one room only.",
-            "schedule": "A schedule helper: during its blocks the room uses its heating temperature, or the block's own \"temperature\" (additional data).",
+            "schedule": "A schedule helper: during its blocks the room uses its comfort temperature, or the block's own \"temperature\" (additional data).",
             "windows": "Contacts that switch the room off while open.",
             "room_sensor": "Optional. Shown as the room's temperature; without it, the thermostats' mean."
           },
@@ -378,10 +384,6 @@
         "duration": {
           "name": "Duration",
           "description": "How long, from now."
-        },
-        "until_next_change": {
-          "name": "Until the next change",
-          "description": "The default: until the schedule changes next."
         }
       }
     },

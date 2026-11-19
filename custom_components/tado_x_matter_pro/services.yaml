@@ -45,9 +45,6 @@ set_override:
     duration:
       selector:
         duration:
-    until_next_change:
-      selector:
-        boolean:
 extend_block:
   target:
     entity:

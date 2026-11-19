@@ -37,7 +37,6 @@ Initial release.
   temperature or the plan's; a room switched off shows none.
 - Removing a thermostat from a room also removes its status sensor; status sensors are named after
   the thermostat also when it was not set up yet.
-- Settings that have no effect yet (boost, window reminder) are marked *planned* in the forms.
 - Reliable delivery: every write is confirmed by the thermostat's report or sent again (setpoints
   after 1, 3 and 10 minutes, off after 30 seconds and 2 minutes), one call at a time per
   thermostat, so a thermostat that does not answer never delays others or the room's actions.
@@ -81,6 +80,10 @@ Initial release.
   `set_override` and the comfort/eco presets, like a dial). While away, a block edge that changes
   nothing no longer ends a hold. The Mode sensor's state for the eco temperature is `eco` (was
   `idle`, which clashed with the thermostat action *idle*).
+- "Only below" in the house settings needs an outdoor sensor; the notify list leaves out
+  `notify.send_message`, which needs a target; `set_override` no longer has an
+  `until_next_change` field (without an end it lasts until the next plan change anyway) and shows
+  its preset on the room thermostat.
 - A new override or extend block ends a running boost; block temperatures are kept within the
   thermostats' 5–30 °C; the room form does not offer the integration's own room thermostats; the
   logbook notes windows only when they switch a room off or back on.

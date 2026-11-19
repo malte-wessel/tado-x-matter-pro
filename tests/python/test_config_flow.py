@@ -249,3 +249,22 @@ async def test_a_room_thermostat_of_the_integration_is_no_rooms_thermostat(
                 "window": {},
             },
         )
+
+
+async def test_only_below_needs_an_outdoor_sensor(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"boost": {}, "window_reminder": {"only_below": 12}}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "only_below_needs_outdoor_sensor"}
+
+
+async def test_the_notify_list_leaves_out_send_message(hass: HomeAssistant) -> None:
+    for name in ("send_message", "mobile_app_phone"):
+        hass.services.async_register("notify", name, lambda _call: None)
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    assert result["data_schema"] is not None
+    reminder = result["data_schema"].schema["window_reminder"].schema.schema
+    notify = next(v for k, v in reminder.items() if k == "notify")
+    assert notify.config["options"] == ["notify.mobile_app_phone"]

@@ -167,7 +167,6 @@ class RoomThermostat(RoomEntity, ClimateEntity):
         preset: str | None = None,
         until: time | None = None,
         duration: timedelta | None = None,
-        until_next_change: bool = False,  # noqa: FBT001, FBT002, ARG002 – the default anyway
     ) -> None:
         """Heat at a temperature (or comfort/eco) until a time, for a while, or the next change."""
         if (temperature is None) == (preset is None):
@@ -181,7 +180,7 @@ class RoomThermostat(RoomEntity, ClimateEntity):
                 else self.room.idle_temperature
             )
         end = next_local(until) if until else (dt_util.utcnow() + duration if duration else None)
-        self.room.set_override(temperature, end)
+        self.room.set_override(temperature, end, preset)
 
     async def async_extend_block(self, until: time) -> None:
         """Keep the plan's current temperature until a time (today, or tomorrow if past)."""

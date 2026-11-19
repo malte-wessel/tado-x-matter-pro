@@ -62,7 +62,7 @@ Section **Windows** (collapsed)
 
 Second step **Heating demand** (optional)
 
-One field per thermostat of the room, labelled with its entity id. Pick a `sensor` that reports a
+One field per thermostat of the room, labelled with its name (its entity id below). Pick a `sensor` that reports a
 heating demand in % or a `binary_sensor` that is on while the thermostat heats – or leave it
 empty. Only thermostats with one get a heating status; see [Heating status](heating-status.md).
 

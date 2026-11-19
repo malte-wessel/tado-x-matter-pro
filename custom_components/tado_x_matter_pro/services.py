@@ -26,13 +26,12 @@ BOOST_SCHEMA: VolDictType = {
     vol.Optional("duration"): _DURATION,
     vol.Optional("temperature"): _TEMPERATURE,
 }
-# What: a temperature or a preset. Until: a time, a duration, or the next plan change (default).
+# What: a temperature or a preset. Until: a time or a duration; without, the next plan change.
 SET_OVERRIDE_SCHEMA: VolDictType = {
     vol.Exclusive("temperature", "what"): _TEMPERATURE,
     vol.Exclusive("preset", "what"): vol.In(PRESETS),
     vol.Exclusive("until", "until"): cv.time,
     vol.Exclusive("duration", "until"): _DURATION,
-    vol.Exclusive("until_next_change", "until"): cv.boolean,
 }
 EXTEND_BLOCK_SCHEMA: VolDictType = {vol.Required("until"): cv.time}
 

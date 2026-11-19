@@ -188,7 +188,6 @@ class RoomsOffSchedule(HouseEntity, SensorEntity):
     """How many rooms "resume all" would change: holds, overrides, rooms switched off."""
 
     _attr_translation_key = "rooms_off_schedule"
-    _attr_native_unit_of_measurement = "rooms"
 
     def __init__(self, entry: HeatingConfigEntry, rooms: Iterable[RoomController]) -> None:
         """Create the house's count."""

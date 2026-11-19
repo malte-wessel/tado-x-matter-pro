@@ -88,7 +88,12 @@ def _temperature(minimum: float = MIN_TEMPERATURE, maximum: float = MAX_TEMPERAT
 def _house_schema(hass: HomeAssistant, options: Mapping[str, Any]) -> vol.Schema:
     boost = options.get(SECTION_BOOST, {})
     reminder = options.get(SECTION_REMINDER, {})
-    notify = sorted(f"notify.{name}" for name in hass.services.async_services_for_domain("notify"))
+    # send_message needs a notify entity as its target; it cannot be one of these.
+    notify = sorted(
+        f"notify.{name}"
+        for name in hass.services.async_services_for_domain("notify")
+        if name != "send_message"
+    )
     reminder_fields: dict[Any, Any] = {
         vol.Optional(
             CONF_OUTDOOR_SENSOR,
@@ -146,6 +151,13 @@ def _house_schema(hass: HomeAssistant, options: Mapping[str, Any]) -> vol.Schema
     )
 
 
+def _validate_house(user_input: Mapping[str, Any]) -> dict[str, str]:
+    reminder = user_input.get(SECTION_REMINDER) or {}
+    if reminder.get(CONF_ONLY_BELOW) is not None and not reminder.get(CONF_OUTDOOR_SENSOR):
+        return {"base": "only_below_needs_outdoor_sensor"}
+    return {}
+
+
 class TadoXMatterProConfigFlow(ConfigFlow, domain=DOMAIN):
     """Single-instance config flow: one house per Home Assistant."""
 
@@ -154,9 +166,12 @@ class TadoXMatterProConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Ask for the house settings; rooms are added afterwards as subentries."""
-        if user_input is not None:
+        errors = _validate_house(user_input) if user_input is not None else {}
+        if user_input is not None and not errors:
             return self.async_create_entry(title=TITLE, data={}, options=user_input)
-        return self.async_show_form(step_id="user", data_schema=_house_schema(self.hass, {}))
+        return self.async_show_form(
+            step_id="user", data_schema=_house_schema(self.hass, user_input or {}), errors=errors
+        )
 
     @staticmethod
     @callback
@@ -179,10 +194,13 @@ class HouseOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show and save the house settings."""
-        if user_input is not None:
+        errors = _validate_house(user_input) if user_input is not None else {}
+        if user_input is not None and not errors:
             return self.async_create_entry(data=user_input)
         return self.async_show_form(
-            step_id="init", data_schema=_house_schema(self.hass, self.config_entry.options)
+            step_id="init",
+            data_schema=_house_schema(self.hass, user_input or self.config_entry.options),
+            errors=errors,
         )
 
 
