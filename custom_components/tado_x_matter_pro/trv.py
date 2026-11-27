@@ -26,7 +26,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .engine.external import Command, Setting, TrvView, matches
+from .engine.external import Command, Setting, TrvView, matches, same_setpoint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,10 @@ _LOGGER = logging.getLogger(__name__)
 RETRY_HEAT = (timedelta(0), timedelta(minutes=1), timedelta(minutes=3), timedelta(minutes=10))
 RETRY_OFF = (timedelta(0), timedelta(seconds=30), timedelta(minutes=2))
 CONFIRM_WITHIN = timedelta(seconds=60)  # after the last attempt, then the writer gives up
-CALL_TIMEOUT = 30  # seconds a service call may take before it counts as failed
+# Seconds each service call may take before it counts as failed. It frees the writer only: the
+# Matter server keeps the write (it waits up to ~85 s for an acknowledgement) and runs later
+# writes to the same thermostat after it, in order.
+CALL_TIMEOUT = 30
 # After giving up, a report that still deviates sends again, at most this often.
 REAPPLY_AFTER = timedelta(minutes=10)
 # And two single late attempts after giving up – for a thermostat that shows available but stays
@@ -46,6 +49,26 @@ RECENT_MAX = 5
 UNCONFIRMED_ISSUE_AFTER = timedelta(minutes=30)
 
 type Want = tuple[str, float | None]
+type Call = tuple[str, dict[str, Any]]  # climate service, its data
+
+
+def _calls(view: TrvView, want: Want) -> list[Call]:
+    """Return the service calls that take the thermostat from `view` to `want`.
+
+    Only the part that deviates is sent. A thermostat switched on heats at its stored setpoint
+    until a later write lands – possibly minutes later, at a setpoint from before the window
+    opened. So the setpoint goes first, while it is still off, and the mode after it. A
+    thermostat that already heats is not switched on again: that would be one more write to a
+    device that may be slow to answer, ahead of the setpoint, and may restore its stored setpoint.
+    """
+    if want[0] == "off":
+        return [("set_hvac_mode", {"hvac_mode": "off"})]
+    calls: list[Call] = []
+    if want[1] is not None and not same_setpoint(view.setpoint, want[1]):
+        calls.append(("set_temperature", {"temperature": want[1]}))
+    if view.hvac_mode != want[0]:
+        calls.append(("set_hvac_mode", {"hvac_mode": want[0]}))
+    return calls
 
 
 class Phase(StrEnum):
@@ -305,23 +328,35 @@ class TrvWriter:
             self._on_send(self.entity_id, want)  # stored before it is sent: see a restart
         self._counters["write"] += 1
         self.stats["attempts"] += 1
+        calls = _calls(view, want)
         self._trace(
             "write",
             thermostat=self.entity_id,
             want=list(want),
             attempt=self._attempt,
             context_id=context.id,
+            calls=[service for service, _ in calls],
         )
         self._task = self.entry.async_create_background_task(
-            self.hass, self._async_call(want, context), f"tado_x_matter_pro write {self.entity_id}"
+            self.hass,
+            self._async_calls(want, calls, context),
+            f"tado_x_matter_pro write {self.entity_id}",
         )
 
-    async def _async_call(self, want: Want, context: Context) -> None:
-        data: dict[str, Any]
-        if want[0] == "off":
-            service, data = "set_hvac_mode", {"hvac_mode": "off"}
-        else:
-            service, data = "set_temperature", {"temperature": want[1], "hvac_mode": "heat"}
+    async def _async_calls(self, want: Want, calls: list[Call], context: Context) -> None:
+        try:
+            for service, data in calls:
+                # One after the other; the mode goes even if the setpoint failed: a room that
+                # needs heat must not stay off, and the next attempt sends the setpoint again.
+                await self._async_call(service, data, context)
+        finally:
+            if self.command is not None and self.command.want == want:
+                self.command.returned_at = dt_util.utcnow()
+            if self._again:
+                self._again = False
+                self.hass.loop.call_soon(self._send)
+
+    async def _async_call(self, service: str, data: dict[str, Any], context: Context) -> None:
         try:
             async with asyncio.timeout(CALL_TIMEOUT):
                 await self.hass.services.async_call(
@@ -333,17 +368,11 @@ class TrvWriter:
                 )
         except TimeoutError:
             self._counters["write_timeout"] += 1
-            self._trace("write_timeout", thermostat=self.entity_id)
+            self._trace("write_timeout", thermostat=self.entity_id, call=service)
         except HomeAssistantError as err:
             _LOGGER.warning("%s: writing %s failed: %s", self.room, self.entity_id, err)
             self._counters["write_failed"] += 1
-            self._trace("write_failed", thermostat=self.entity_id, error=str(err))
-        finally:
-            if self.command is not None and self.command.want == want:
-                self.command.returned_at = dt_util.utcnow()
-            if self._again:
-                self._again = False
-                self.hass.loop.call_soon(self._send)
+            self._trace("write_failed", thermostat=self.entity_id, call=service, error=str(err))
 
     # --- the repair issue ---
 

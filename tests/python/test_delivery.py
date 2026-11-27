@@ -8,8 +8,9 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -105,7 +106,7 @@ async def test_a_write_that_does_not_arrive_is_sent_again(
         await advance(hass, freezer, seconds)
         attempts.append(len(kitchen.writes) - before)
     assert attempts == [1, 2, 3, 4, 4]
-    assert kitchen.writes[-1] == ("heat", 18.0)
+    assert kitchen.calls[-4:] == [{"temperature": 18.0}] * 4  # it heats already: no switching on
 
     issues = ir.async_get(hass)
     assert issues.async_get_issue(DOMAIN, ISSUE) is None
@@ -228,6 +229,37 @@ async def test_a_call_that_hangs_blocks_neither_the_room_nor_other_rooms(
     kitchen.hang.set()
     await hass.async_block_till_done()
     assert setpoint(hass, KITCHEN_TRV) == ("heat", 24.0)  # the latest wins
+
+
+async def test_a_thermostat_back_from_a_window_never_heats_at_its_old_setpoint(
+    hass: HomeAssistant,
+    setup_house: Setup,
+    freezer: FrozenDateTimeFactory,
+    trvs: dict[str, FakeTrv],
+) -> None:
+    await setup_house()
+    kitchen = trvs[KITCHEN_TRV]
+    set_inputs(hass, kitchen_window="on")
+    await advance(hass, freezer, 30)
+    assert setpoint(hass, KITCHEN_TRV) == ("off", 21.0)  # it keeps 21 stored
+    set_inputs(hass, ground_floor="off")  # the plan drops to 18 during the opening
+    await hass.async_block_till_done()
+
+    shown: list[tuple[str, float | None]] = []
+
+    @callback
+    def record(_event: Event[EventStateChangedData]) -> None:
+        now = setpoint(hass, KITCHEN_TRV)
+        if not shown or shown[-1] != now:
+            shown.append(now)
+
+    async_track_state_change_event(hass, KITCHEN_TRV, record)
+    set_inputs(hass, kitchen_window="off")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, 5 * 60)  # the close delay
+    assert shown == [("off", 18.0), ("heat", 18.0)]  # never heat at 21
+    assert kitchen.calls[-2:] == [{"temperature": 18.0}, {"hvac_mode": "heat"}]
+    assert mode(hass, "kitchen_heating") == "eco"
 
 
 async def test_a_late_two_part_delivery_on_the_way_back_from_a_window_is_no_hold(

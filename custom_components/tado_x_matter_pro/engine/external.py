@@ -57,10 +57,11 @@ def matches(view: TrvView, setting: Setting) -> bool:
     """Return whether the thermostat shows `setting` (an off thermostat's setpoint is moot)."""
     if view.hvac_mode != setting[0]:
         return False
-    return view.hvac_mode == "off" or _same(view.setpoint, setting[1])
+    return view.hvac_mode == "off" or same_setpoint(view.setpoint, setting[1])
 
 
-def _same(a: float | None, b: float | None) -> bool:
+def same_setpoint(a: float | None, b: float | None) -> bool:
+    """Return whether two setpoints are the same, within what a thermostat reports back."""
     if a is None or b is None:
         return a is b
     return abs(a - b) <= TOLERANCE
@@ -87,7 +88,7 @@ def classify(  # noqa: PLR0911, PLR0913 – one return per rule reads best here
     if not old.available:
         return _reconnected(new, desired, known, list(recent))
     mode_changed = new.hvac_mode != old.hvac_mode
-    setpoint_changed = not _same(new.setpoint, old.setpoint)
+    setpoint_changed = not same_setpoint(new.setpoint, old.setpoint)
     if not mode_changed and not setpoint_changed:
         return Report.IGNORED
     if not mode_changed and new.hvac_mode == "off":
@@ -120,4 +121,4 @@ def _on_the_way(new: TrvView, command: Command, now: datetime) -> bool:
         return False
     modes = {command.prev[0], command.want[0]}
     setpoints = (command.prev[1], command.want[1])
-    return new.hvac_mode in modes and any(_same(new.setpoint, s) for s in setpoints)
+    return new.hvac_mode in modes and any(same_setpoint(new.setpoint, s) for s in setpoints)

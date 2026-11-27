@@ -85,6 +85,7 @@ class FakeTrv(ClimateEntity):
         self._attr_target_temperature = 18.0
         self._attr_current_temperature = 20.0
         self.writes: list[tuple[str, float | None]] = []
+        self.calls: list[dict[str, Any]] = []  # the service data as it arrived
         # Thread trouble: writes that never arrive, writes the Matter server delivers later
         # (`deliver`), a call that does not return until `hang` is set.
         self.lose_writes = False
@@ -97,6 +98,7 @@ class FakeTrv(ClimateEntity):
         mode = kwargs.get(ATTR_HVAC_MODE)
         temperature = kwargs.get(ATTR_TEMPERATURE)
         self.writes.append((str(mode or self._attr_hvac_mode), temperature))
+        self.calls.append({k: v for k, v in kwargs.items() if k != "entity_id"})
         if await self._held(mode, temperature):
             return
         self._apply(mode, temperature)
@@ -104,6 +106,7 @@ class FakeTrv(ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch off or on."""
         self.writes.append((str(hvac_mode), None))
+        self.calls.append({"hvac_mode": str(hvac_mode)})
         if await self._held(hvac_mode, None):
             return
         self._attr_hvac_mode = hvac_mode

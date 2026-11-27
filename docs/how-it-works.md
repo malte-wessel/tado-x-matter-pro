@@ -218,6 +218,12 @@ keep a room in eco for good.
 
 Tado X thermostats talk over Thread, and Thread links drop out. So every write is checked:
 
+- **Only what differs, setpoint first.** A thermostat that already heats gets only the new
+  setpoint; it is not switched on again. One that is off – after a window, say – gets the setpoint
+  while it is still off and is switched on after that. Switched on first, it would heat at the
+  setpoint it had stored from before, until the new one arrives, which over Thread can take
+  minutes.
+
 - **Confirmed or sent again.** A write counts once the thermostat reports the new value. Until
   then it is sent again: a setpoint after 1, 3 and 10 minutes, *off* after 30 seconds and
   2 minutes. After that it is sent whenever the thermostat reports or reconnects, and – for one
