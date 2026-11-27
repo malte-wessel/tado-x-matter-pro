@@ -2637,7 +2637,7 @@ wheels = [
 
 [[package]]
 name = "tado-x-matter-pro"
-version = "0.1.0b1"
+version = "0.1.0b2"
 source = { virtual = "." }
 
 [package.dev-dependencies]
